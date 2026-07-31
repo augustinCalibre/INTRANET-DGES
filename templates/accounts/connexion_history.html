@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Historique des connexions | Intranet DGES{% endblock %}
+{% block page_title %}Historique des connexions{% endblock %}
+
+{% block content %}
+    <div class="panel-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">Qui s'est connecté, quand, depuis quel poste</h3>
+                <p class="text-muted mb-0">
+                    Les échecs sont conservés autant que les réussites : une série de tentatives
+                    infructueuses sur un même compte est le premier signe d'essais successifs.
+                </p>
+            </div>
+            <a href="{% url 'accounts:access_panel' %}" class="btn btn-outline-secondary">Panneau d'accès</a>
+        </div>
+
+        <div class="diploma-metric-grid mb-4">
+            <div class="diploma-metric">
+                <span>Connexions (24 h)</span>
+                <strong>{{ stats.connexions_24h }}</strong>
+            </div>
+            <div class="diploma-metric {% if stats.echecs_24h %}is-danger{% endif %}">
+                <span>Échecs (24 h)</span>
+                <strong>{{ stats.echecs_24h }}</strong>
+            </div>
+            <div class="diploma-metric">
+                <span>Entrées affichées</span>
+                <strong>{{ stats.total }}</strong>
+            </div>
+        </div>
+
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-lg-5">
+                <label class="form-label" for="connSearch">Recherche</label>
+                <input
+                    type="text"
+                    class="form-control"
+                    id="connSearch"
+                    name="q"
+                    value="{{ search_term }}"
+                    placeholder="Identifiant ou adresse IP"
+                >
+            </div>
+            <div class="col-lg-4">
+                <label class="form-label" for="connResultat">Résultat</label>
+                <select name="resultat" id="connResultat" class="form-select">
+                    <option value="">Tous les résultats</option>
+                    {% for value, label in resultat_choices %}
+                        <option value="{{ value }}" {% if resultat_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-3 d-grid align-self-end">
+                <button type="submit" class="btn btn-outline-primary">Filtrer</button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table align-middle stacked-mobile-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Compte</th>
+                        <th>Résultat</th>
+                        <th>Adresse</th>
+                        <th>Poste</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for connexion in connexions %}
+                        <tr {% if connexion.est_echec %}class="diploma-row-anomaly"{% endif %}>
+                            <td data-label="Date">{{ connexion.date|date:"d/m/Y H:i:s" }}</td>
+                            <td data-label="Compte">
+                                {{ connexion.libelle_compte }}
+                                {% if not connexion.utilisateur %}
+                                    <small class="d-block text-muted">compte inexistant</small>
+                                {% endif %}
+                            </td>
+                            <td data-label="Résultat">
+                                {% if connexion.resultat == "succes" %}
+                                    <span class="badge diploma-status-compliant">{{ connexion.get_resultat_display }}</span>
+                                {% elif connexion.resultat == "echec" %}
+                                    <span class="badge diploma-status-anomaly">{{ connexion.get_resultat_display }}</span>
+                                {% else %}
+                                    <span class="badge diploma-status-archived">{{ connexion.get_resultat_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Adresse">{{ connexion.adresse_ip|default:"-" }}</td>
+                            <td data-label="Poste">
+                                <small class="text-muted">{{ connexion.poste|truncatechars:70|default:"-" }}</small>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5">
+                                <div class="diploma-empty">
+                                    <strong>Aucune connexion enregistrée</strong>
+                                    <span>
+                                        {% if search_term or resultat_filter %}
+                                            Aucune entrée ne correspond à ces critères.
+                                        {% else %}
+                                            L'historique se remplit à partir de la prochaine connexion.
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% include "includes/pagination.html" %}
+    </div>
+{% endblock %}

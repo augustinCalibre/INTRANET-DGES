@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Lots de diplômes | Intranet DGES{% endblock %}
+{% block page_title %}Lots de diplômes{% endblock %}
+
+{% block content %}
+    <div class="panel-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">Registre des lots d'arrivée</h3>
+                <p class="text-muted mb-0">
+                    Réception, vérification, transmission à la signature du Directeur Général, retour et archivage.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 page-actions">
+                <a href="{% url 'diplomas:search' %}" class="btn btn-outline-secondary">Rechercher un diplôme</a>
+                {% if can_export %}
+                    <a href="{% url 'diplomas:registry_export' %}?{{ base_querystring }}" class="btn btn-outline-primary">Exporter le registre</a>
+                {% endif %}
+                {% if can_manage %}
+                    <a href="{% url 'diplomas:lot_create' %}" class="btn btn-primary">Enregistrer un lot</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="diploma-status-strip" role="list">
+            <a
+                href="{% url 'diplomas:lot_list' %}"
+                class="diploma-status-chip {% if not status_filter and not anomaly_filter %}is-active{% endif %}"
+                role="listitem"
+            >
+                <span>Tous les lots</span>
+                <strong>{{ total_lots }}</strong>
+            </a>
+            {% for item in status_counts %}
+                <a
+                    href="{% url 'diplomas:lot_list' %}?statut={{ item.key }}"
+                    class="diploma-status-chip diploma-chip-{{ item.key }} {% if status_filter == item.key %}is-active{% endif %}"
+                    role="listitem"
+                >
+                    <span>{{ item.label }}</span>
+                    <strong>{{ item.total }}</strong>
+                </a>
+            {% endfor %}
+            <a
+                href="{% url 'diplomas:lot_list' %}?anomalies=1"
+                class="diploma-status-chip diploma-chip-anomaly {% if anomaly_filter == '1' %}is-active{% endif %}"
+                role="listitem"
+            >
+                <span>Avec anomalies</span>
+                <strong>!</strong>
+            </a>
+        </div>
+
+        {% if active_filter_label %}
+            <div class="filter-notice mb-4">
+                <span class="filter-notice-label">Vue filtrée</span>
+                <strong>{{ active_filter_label }}</strong>
+                <a href="{% url 'diplomas:lot_list' %}" class="btn btn-sm btn-outline-secondary">Afficher tout</a>
+            </div>
+        {% endif %}
+
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-lg-4">
+                <label class="form-label" for="lotSearch">Recherche</label>
+                <input
+                    type="text"
+                    id="lotSearch"
+                    class="form-control"
+                    name="q"
+                    value="{{ search_term }}"
+                    placeholder="Référence, établissement, nom ou numéro"
+                >
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label" for="lotStatus">Statut du lot</label>
+                <select name="statut" id="lotStatus" class="form-select">
+                    <option value="">Tous les statuts</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label" for="lotPeriod">Période</label>
+                <select name="periode" id="lotPeriod" class="form-select">
+                    <option value="">Toutes les périodes</option>
+                    <option value="month" {% if period_filter == "month" %}selected{% endif %}>Mois en cours</option>
+                </select>
+            </div>
+            <div class="col-lg-2 d-grid align-self-end">
+                <button type="submit" class="btn btn-outline-primary">Filtrer</button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table align-middle stacked-mobile-table">
+                <thead>
+                    <tr>
+                        <th>Référence</th>
+                        <th>Établissement</th>
+                        <th>Arrivée</th>
+                        <th>Saisie</th>
+                        <th>Anomalies</th>
+                        <th>Statut</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lot in lots %}
+                        <tr>
+                            <td data-label="Référence">
+                                <a href="{% url 'diplomas:lot_detail' lot.pk %}" class="diploma-reference">{{ lot.reference }}</a>
+                                {% if lot.attente_signature %}
+                                    <span class="diploma-flag">À signer</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Établissement">{{ lot.etablissement }}</td>
+                            <td data-label="Arrivée">{{ lot.date_arrivee|date:"d/m/Y" }}</td>
+                            <td data-label="Saisie">
+                                <div class="diploma-count-cell">
+                                    <span>{{ lot.nombre_enregistre }} / {{ lot.nombre_annonce }}</span>
+                                    <div class="diploma-progress" role="presentation">
+                                        <div class="diploma-progress-bar" style="width: {{ lot.saisie_progression }}%"></div>
+                                    </div>
+                                    {% if lot.has_ecart %}
+                                        <small class="diploma-ecart">{{ lot.ecart_label }}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td data-label="Anomalies">
+                                {% if lot.nombre_anomalies %}
+                                    <span class="badge diploma-status-anomaly">{{ lot.nombre_anomalies }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Statut"><span class="{{ lot.status_badge_class }}">{{ lot.get_statut_display }}</span></td>
+                            <td data-label="Action" class="text-end table-actions">
+                                <div class="action-icon-bar justify-content-end">
+                                    <a
+                                        href="{% url 'diplomas:lot_detail' lot.pk %}"
+                                        class="action-icon-button action-icon-button-neutral"
+                                        aria-label="Ouvrir le lot {{ lot.reference }}"
+                                        title="Ouvrir la fiche du lot"
+                                    >
+                                        {% include "includes/action_icon.html" with icon="view" %}
+                                    </a>
+                                    {% if can_manage %}
+                                        <a
+                                            href="{% url 'diplomas:lot_edit' lot.pk %}"
+                                            class="action-icon-button action-icon-button-primary"
+                                            aria-label="Modifier le lot {{ lot.reference }}"
+                                            title="Modifier la fiche"
+                                        >
+                                            {% include "includes/action_icon.html" with icon="edit" %}
+                                        </a>
+                                    {% endif %}
+                                    {% if can_delete %}
+                                        <form
+                                            method="post"
+                                            action="{% url 'diplomas:lot_delete' lot.pk %}"
+                                            class="action-icon-form"
+                                            data-confirm-form="Supprimer le lot {{ lot.reference }} et les {{ lot.nombre_enregistre }} diplôme(s) qu'il contient ? Cette action est définitive."
+                                            data-confirm-title="Supprimer le lot"
+                                            data-confirm-accept="Supprimer"
+                                            data-confirm-tone="danger"
+                                        >
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button
+                                                type="submit"
+                                                class="action-icon-button action-icon-button-danger"
+                                                aria-label="Supprimer le lot {{ lot.reference }}"
+                                                title="Supprimer"
+                                            >
+                                                {% include "includes/action_icon.html" with icon="delete" %}
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7">
+                                <div class="diploma-empty">
+                                    <strong>Aucun lot de diplômes</strong>
+                                    <span>
+                                        {% if search_term or status_filter or anomaly_filter %}
+                                            Aucun lot ne correspond à ces critères de recherche.
+                                        {% else %}
+                                            Enregistrez le premier lot reçu pour démarrer le suivi.
+                                        {% endif %}
+                                    </span>
+                                    {% if can_manage and not search_term and not status_filter %}
+                                        <a href="{% url 'diplomas:lot_create' %}" class="btn btn-primary btn-sm">Enregistrer un lot</a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% include "includes/pagination.html" %}
+    </div>
+{% endblock %}

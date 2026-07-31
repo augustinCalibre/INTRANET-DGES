@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | Intranet DGES{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="panel-card form-card">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if user_form.non_field_errors or profile_form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {{ user_form.non_field_errors }}
+                    {{ profile_form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <h3 class="h6 section-title">Informations du compte</h3>
+                    <div class="row g-3">
+                        {% for field in user_form %}
+                            <div class="col-md-6">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                                {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text|safe }}</div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <h3 class="h6 section-title">Profil DGES</h3>
+                    <div class="row g-3">
+                        {% for field in profile_form %}
+                            <div class="{% if field.name == 'actif' %}col-12{% else %}col-md-6{% endif %}">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-4 form-actions">
+                <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary">Retour a la liste</a>
+                <button type="submit" class="btn btn-primary">{% if is_creation %}Créer le compte{% else %}Enregistrer{% endif %}</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

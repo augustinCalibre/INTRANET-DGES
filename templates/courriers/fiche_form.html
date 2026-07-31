@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Fiche d'analyse — {{ courrier.reference }} | Intranet DGES{% endblock %}
+{% block page_title %}Fiche d'analyse du courrier{% endblock %}
+
+{% block content %}
+    <div class="panel-card mb-4">
+        <div class="diploma-lot-head-top">
+            <div>
+                <span class="diploma-lot-kicker">{{ courrier.reference }}</span>
+                <h3 class="diploma-lot-title">{{ courrier.objet }}</h3>
+                <p class="diploma-lot-meta mb-0">
+                    De {{ courrier.expediteur }} · reçu le {{ courrier.date_reception|date:"d/m/Y" }}
+                    {% if courrier.numero_arrivee %} · arrivée n° {{ courrier.numero_arrivee }}{% endif %}
+                </p>
+            </div>
+            <div class="diploma-lot-head-actions">
+                <span class="{{ courrier.status_badge_class }} diploma-status-large">{{ courrier.get_statut_display }}</span>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'courriers:detail' courrier.pk %}" class="btn btn-outline-secondary btn-sm">Retour au courrier</a>
+                    <a href="{% url 'courriers:fiche_print' courrier.pk %}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">Imprimer la fiche</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if pour_le_compte_du_dg %}
+        <div class="list-note info mb-4">
+            <strong>Saisie pour le compte du Directeur Général</strong>
+            <span>
+                Vous n'êtes pas le Directeur Général : la fiche sera enregistrée comme reportée
+                en son nom, avec la mention de votre saisie. C'est la voie normale lorsqu'il a
+                annoté la fiche papier.
+            </span>
+        </div>
+    {% endif %}
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="panel-card mb-4">
+            <div class="panel-header">
+                <h4>Imputations</h4>
+            </div>
+            <p class="text-muted small">
+                Une colonne par service, avec ses agents. Chaque case cochée prévient le service
+                ou l'agent, qui reçoit le lien du courrier et peut le traiter directement.
+                Cocher un service prévient tous ses agents.
+            </p>
+            <div class="fiche-grille-saisie">
+                {% for colonne in form.grille_imputations %}
+                    <fieldset class="fiche-colonne">
+                        <legend>{{ colonne.service.nom }}</legend>
+                        <label class="fiche-case-saisie fiche-case-service">
+                            <input
+                                type="checkbox"
+                                name="services_imputes"
+                                value="{{ colonne.service.pk }}"
+                                class="form-check-input"
+                                {% if colonne.service_cochee %}checked{% endif %}
+                            >
+                            <span>Tout le service</span>
+                        </label>
+                        {% for agent in colonne.agents %}
+                            <label class="fiche-case-saisie">
+                                <input
+                                    type="checkbox"
+                                    name="agents_imputes"
+                                    value="{{ agent.objet.pk }}"
+                                    class="form-check-input"
+                                    {% if agent.cochee %}checked{% endif %}
+                                >
+                                <span>{{ agent.nom }}</span>
+                            </label>
+                        {% empty %}
+                            <p class="text-muted small mb-0">Aucun agent rattaché.</p>
+                        {% endfor %}
+                    </fieldset>
+                {% empty %}
+                    <div class="diploma-empty">
+                        <strong>Aucun service actif</strong>
+                        <span>Créez les services et rattachez-y les agents depuis le panneau d'accès.</span>
+                    </div>
+                {% endfor %}
+            </div>
+            {% for error in form.services_imputes.errors %}
+                <div class="text-danger small mt-2">{{ error }}</div>
+            {% endfor %}
+            {% for error in form.agents_imputes.errors %}
+                <div class="text-danger small mt-2">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="panel-card mb-4">
+            <div class="panel-header">
+                <h4>Instructions</h4>
+            </div>
+            <div class="fiche-instructions-saisie">
+                {% for instruction in form.instructions_cochables %}
+                    <label class="fiche-case-saisie">
+                        <input
+                            type="checkbox"
+                            name="instructions"
+                            value="{{ instruction.objet.pk }}"
+                            class="form-check-input"
+                            {% if instruction.cochee %}checked{% endif %}
+                        >
+                        <span>{{ instruction.objet.libelle }}</span>
+                    </label>
+                {% empty %}
+                    <p class="text-muted mb-0">Aucune instruction configurée.</p>
+                {% endfor %}
+            </div>
+
+            <div class="mt-4">
+                <label class="form-label" for="{{ form.autres_instructions.id_for_label }}">{{ form.autres_instructions.label }}</label>
+                {{ form.autres_instructions }}
+                {% for error in form.autres_instructions.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="panel-card form-card">
+            <div class="panel-header">
+                <h4>Observations</h4>
+            </div>
+            <label class="form-label" for="{{ form.instruction_dg.id_for_label }}">{{ form.instruction_dg.label }}</label>
+            {{ form.instruction_dg }}
+            {% for error in form.instruction_dg.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+            {% endfor %}
+
+            <label class="fiche-case-saisie mt-3">
+                {{ form.ouvrir_des_taches }}
+                <span>
+                    {{ form.ouvrir_des_taches.label }}
+                    <small class="d-block text-muted">{{ form.ouvrir_des_taches.help_text }}</small>
+                </span>
+            </label>
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4 form-actions">
+                <a href="{% url 'courriers:detail' courrier.pk %}" class="btn btn-outline-secondary">Annuler</a>
+                <button type="submit" class="btn btn-primary">Enregistrer la fiche</button>
+            </div>
+        </div>
+    </form>
+{% endblock %}

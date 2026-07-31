@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Utilisateurs | Intranet DGES{% endblock %}
+{% block page_title %}Utilisateurs et rôles{% endblock %}
+
+{% block content %}
+    <div class="panel-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">Comptes agents</h3>
+                <p class="text-muted mb-0">Gestion simplifiée des agents, profils et rôles.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 page-actions">
+                <a href="{% url 'accounts:access_panel' %}" class="btn btn-outline-secondary">Panneau d'accès</a>
+                {% if can_edit %}
+                    <a href="{% url 'accounts:service_list' %}" class="btn btn-outline-secondary">Services</a>
+                    <a href="{% url 'accounts:user_create' %}" class="btn btn-primary">Ajouter un agent</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-lg-5">
+                <label class="form-label" for="userSearch">Recherche</label>
+                <input type="text" class="form-control" id="userSearch" name="q" value="{{ search_term }}" placeholder="Nom, service ou fonction">
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label" for="userRole">Rôle</label>
+                <select name="role" id="userRole" class="form-select">
+                    <option value="">Tous les rôles</option>
+                    {% for value, label in role_choices %}
+                        <option value="{{ value }}" {% if role_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label" for="userEtat">État</label>
+                <select name="etat" id="userEtat" class="form-select">
+                    <option value="">Tous</option>
+                    <option value="actif" {% if etat_filter == "actif" %}selected{% endif %}>Actifs</option>
+                    <option value="inactif" {% if etat_filter == "inactif" %}selected{% endif %}>Désactivés</option>
+                </select>
+            </div>
+            <div class="col-lg-2 d-grid align-self-end">
+                <button type="submit" class="btn btn-outline-primary">Filtrer</button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table align-middle stacked-mobile-table">
+                <thead>
+                    <tr>
+                        <th>Agent</th>
+                        <th>Identifiant</th>
+                        <th>Service</th>
+                        <th>Fonction</th>
+                        <th>Rôle</th>
+                        <th>Statut</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for profile in profiles %}
+                        <tr>
+                            <td data-label="Agent">{{ profile.utilisateur.get_full_name|default:profile.utilisateur.username }}</td>
+                            <td data-label="Identifiant">{{ profile.utilisateur.username }}</td>
+                            <td data-label="Service">{{ profile.service|default:"-" }}</td>
+                            <td data-label="Fonction">{{ profile.fonction|default:"-" }}</td>
+                            <td data-label="Role"><span class="badge text-bg-light">{{ profile.get_role_display }}</span></td>
+                            <td data-label="Statut">
+                                {% if profile.actif %}
+                                    <span class="badge diploma-status-compliant">Actif</span>
+                                {% else %}
+                                    <span class="badge diploma-status-archived">Désactivé</span>
+                                {% endif %}
+                                {% if profile.doit_changer_mot_de_passe %}
+                                    <small class="d-block text-muted">mot de passe à changer</small>
+                                {% endif %}
+                            </td>
+                            <td data-label="Action" class="text-end table-actions">
+                                {% if can_edit or can_delete %}
+                                    <div class="action-icon-bar justify-content-end">
+                                        {% if can_edit %}
+                                            <a
+                                                href="{% url 'accounts:user_edit' profile.utilisateur.pk %}"
+                                                class="action-icon-button action-icon-button-primary"
+                                                aria-label="Modifier le compte {{ profile.utilisateur.username }}"
+                                                title="Modifier"
+                                            >
+                                                {% include "includes/action_icon.html" with icon="edit" %}
+                                            </a>
+                                        {% endif %}
+                                        {% if can_edit %}
+                                            <form
+                                                method="post"
+                                                action="{% url 'accounts:user_password_reset' profile.utilisateur.pk %}"
+                                                class="action-icon-form"
+                                                data-confirm-form="Attribuer un mot de passe provisoire à {{ profile.utilisateur.username }} ? Il sera affiché une seule fois et l'agent devra le changer."
+                                                data-confirm-title="Réinitialiser le mot de passe"
+                                                data-confirm-accept="Réinitialiser"
+                                            >
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                <button
+                                                    type="submit"
+                                                    class="action-icon-button action-icon-button-neutral"
+                                                    aria-label="Réinitialiser le mot de passe de {{ profile.utilisateur.username }}"
+                                                    title="Réinitialiser le mot de passe"
+                                                >
+                                                    {% include "includes/action_icon.html" with icon="revalidate" %}
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                        {% if can_edit and profile.utilisateur != request.user %}
+                                            <form
+                                                method="post"
+                                                action="{% url 'accounts:user_toggle_active' profile.utilisateur.pk %}"
+                                                class="action-icon-form"
+                                                data-confirm-form="{% if profile.actif %}Désactiver{% else %}Réactiver{% endif %} le compte {{ profile.utilisateur.username }} ?"
+                                                data-confirm-title="{% if profile.actif %}Désactiver{% else %}Réactiver{% endif %} le compte"
+                                                data-confirm-accept="{% if profile.actif %}Désactiver{% else %}Réactiver{% endif %}"
+                                            >
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                <button
+                                                    type="submit"
+                                                    class="action-icon-button {% if profile.actif %}action-icon-button-neutral{% else %}action-icon-button-success{% endif %}"
+                                                    aria-label="{% if profile.actif %}Désactiver{% else %}Réactiver{% endif %} le compte {{ profile.utilisateur.username }}"
+                                                    title="{% if profile.actif %}Désactiver le compte{% else %}Réactiver le compte{% endif %}"
+                                                >
+                                                    {% include "includes/action_icon.html" with icon="checkout" %}
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                        {% if can_delete and profile.utilisateur != request.user %}
+                                            <form
+                                                method="post"
+                                                action="{% url 'accounts:user_delete' profile.utilisateur.pk %}"
+                                                class="action-icon-form"
+                                                data-confirm-form="Confirmer la suppression de ce compte agent ?"
+                                                data-confirm-title="Supprimer le compte"
+                                                data-confirm-accept="Supprimer"
+                                                data-confirm-tone="danger"
+                                            >
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                <button
+                                                    type="submit"
+                                                    class="action-icon-button action-icon-button-danger"
+                                                    aria-label="Supprimer le compte {{ profile.utilisateur.username }}"
+                                                    title="Supprimer"
+                                                >
+                                                    {% include "includes/action_icon.html" with icon="delete" %}
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-muted">Aucun compte trouvé.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

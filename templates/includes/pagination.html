@@ -1,0 +1,24 @@
+{% if page_obj.paginator.num_pages > 1 %}
+    <nav class="pagination-bar" aria-label="Navigation entre les pages">
+        <p class="pagination-status mb-0">
+            Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
+            <span>{{ page_obj.paginator.count }} élément{{ page_obj.paginator.count|pluralize }} au total</span>
+        </p>
+        <div class="pagination-controls">
+            {% if page_obj.has_previous %}
+                <a class="btn btn-sm btn-outline-secondary" href="?{{ base_querystring }}page=1" aria-label="Première page">&laquo;</a>
+                <a class="btn btn-sm btn-outline-secondary" href="?{{ base_querystring }}page={{ page_obj.previous_page_number }}">Précédent</a>
+            {% else %}
+                <span class="btn btn-sm btn-outline-secondary disabled" aria-hidden="true">&laquo;</span>
+                <span class="btn btn-sm btn-outline-secondary disabled" aria-hidden="true">Précédent</span>
+            {% endif %}
+            {% if page_obj.has_next %}
+                <a class="btn btn-sm btn-outline-secondary" href="?{{ base_querystring }}page={{ page_obj.next_page_number }}">Suivant</a>
+                <a class="btn btn-sm btn-outline-secondary" href="?{{ base_querystring }}page={{ page_obj.paginator.num_pages }}" aria-label="Dernière page">&raquo;</a>
+            {% else %}
+                <span class="btn btn-sm btn-outline-secondary disabled" aria-hidden="true">Suivant</span>
+                <span class="btn btn-sm btn-outline-secondary disabled" aria-hidden="true">&raquo;</span>
+            {% endif %}
+        </div>
+    </nav>
+{% endif %}

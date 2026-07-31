@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Panneau d'accès | Intranet DGES{% endblock %}
+{% block page_title %}Panneau général d'accès{% endblock %}
+
+{% block content %}
+    <section class="page-intro">
+        <div>
+            <h3 class="page-intro-title">Comptes, rôles et services</h3>
+            <p class="page-intro-text">
+                Chaque agent reçoit un rôle, et le rôle détermine ce qu'il peut faire.
+                Aucun droit ne se règle agent par agent.
+            </p>
+        </div>
+        {% if can_edit %}
+            <nav class="quick-actions" aria-label="Actions d'administration">
+                <a href="{% url 'accounts:user_create' %}" class="quick-action">
+                    <span class="quick-action-label">Comptes</span>
+                    Créer un compte
+                </a>
+                <a href="{% url 'accounts:service_list' %}" class="quick-action">
+                    <span class="quick-action-label">Services</span>
+                    Gérer les services
+                </a>
+                <a href="{% url 'accounts:user_list' %}" class="quick-action">
+                    <span class="quick-action-label">Annuaire</span>
+                    Tous les comptes
+                </a>
+                <a href="{% url 'accounts:connexion_history' %}" class="quick-action">
+                    <span class="quick-action-label">Journal</span>
+                    Historique des connexions
+                </a>
+            </nav>
+        {% endif %}
+    </section>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <a href="{% url 'accounts:user_list' %}?etat=actif" class="stat-card stat-card-link">
+                <span class="stat-label">Comptes actifs</span>
+                <strong>{{ stats.total_actifs }}</strong>
+                <small>sur {{ stats.total_comptes }} enregistré{{ stats.total_comptes|pluralize }}</small>
+            </a>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <a href="{% url 'accounts:user_list' %}?etat=inactif" class="stat-card stat-card-link">
+                <span class="stat-label">Comptes désactivés</span>
+                <strong>{{ stats.total_inactifs }}</strong>
+                <small>accès bloqué, historique conservé</small>
+            </a>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <a href="{% url 'accounts:service_list' %}" class="stat-card stat-card-link">
+                <span class="stat-label">Services</span>
+                <strong>{{ stats.services_actifs }}</strong>
+                <small>sur {{ stats.total_services }} enregistré{{ stats.total_services|pluralize }}</small>
+            </a>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="stat-card">
+                <span class="stat-label">Mots de passe à changer</span>
+                <strong>{{ stats.mots_de_passe_a_changer }}</strong>
+                <small>réinitialisés, en attente de l'agent</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-7">
+            <div class="panel-card viz-panel">
+                <div class="panel-header">
+                    <h4>Répartition des comptes par rôle</h4>
+                </div>
+                <div class="viz-bars mb-4">
+                    {% for role in roles %}
+                        <a
+                            href="{% url 'accounts:user_list' %}?role={{ role.cle }}"
+                            class="viz-bar-row"
+                            title="{{ role.libelle }} : {{ role.total }} compte(s). Cliquer pour filtrer l'annuaire."
+                        >
+                            <span class="viz-bar-label">{{ role.libelle }}</span>
+                            <span class="viz-bar-track">
+                                <span class="viz-bar-fill" style="width: {{ role.largeur }}%"></span>
+                            </span>
+                            <span class="viz-bar-value">{{ role.total }}</span>
+                        </a>
+                    {% endfor %}
+                </div>
+
+                <div class="panel-header">
+                    <h4>Ce que chaque rôle autorise</h4>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle stacked-mobile-table">
+                        <thead>
+                            <tr>
+                                <th>Rôle</th>
+                                <th>Responsabilités</th>
+                                <th>Comptes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for role in roles %}
+                                <tr>
+                                    <td data-label="Rôle"><strong>{{ role.libelle }}</strong></td>
+                                    <td data-label="Responsabilités">
+                                        {% for capacite in role.capacites %}
+                                            <span class="badge text-bg-light">{{ capacite }}</span>
+                                        {% empty %}
+                                            <span class="text-muted">-</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td data-label="Comptes">{{ role.total }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted small mb-0 mt-3">
+                    La matrice complète est définie dans <code>accounts/constants.py</code> et
+                    vérifiée par les tests : pour chacun des sept rôles, ce qui est autorisé
+                    <strong>et</strong> ce qui doit être refusé.
+                </p>
+            </div>
+        </div>
+
+        <div class="col-xl-5">
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h4>Services</h4>
+                    {% if can_edit %}
+                        <a href="{% url 'accounts:service_create' %}" class="btn btn-sm btn-primary">Nouveau service</a>
+                    {% endif %}
+                </div>
+                {% for service in services %}
+                    <div class="list-note {% if not service.actif %}warning{% endif %}">
+                        <strong>{{ service.nom }}</strong>
+                        <span>
+                            {{ service.membres_total }} agent{{ service.membres_total|pluralize }}
+                            {% if service.responsable %} · {{ service.responsable.get_full_name|default:service.responsable.username }}{% endif %}
+                            {% if not service.actif %} · inactif{% endif %}
+                        </span>
+                    </div>
+                {% empty %}
+                    <div class="diploma-empty">
+                        <strong>Aucun service enregistré</strong>
+                        <span>Créez les services réels de la direction avant d'ouvrir les comptes des agents.</span>
+                        {% if can_edit %}
+                            <a href="{% url 'accounts:service_create' %}" class="btn btn-primary btn-sm">Créer un service</a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

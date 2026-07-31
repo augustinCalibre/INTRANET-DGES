@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | Intranet DGES{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="panel-card form-card">
+        <div class="panel-header">
+            <h4>{% if is_creation %}Réception d'un lot de diplômes{% else %}Fiche du lot{% endif %}</h4>
+        </div>
+        <p class="text-muted">
+            {% if is_creation %}
+                Enregistrez d'abord le lot tel qu'il a été reçu. Les diplômes seront rattachés ensuite,
+                un par un ou par import du tableau de l'établissement.
+            {% else %}
+                Les dates de transmission, de signature et de retour sont renseignées automatiquement
+                par les actions du circuit de traitement.
+            {% endif %}
+        </p>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="row g-3">
+                {% for field in form %}
+                    <div class="{% if field.name == 'observation' %}col-12{% else %}col-md-6{% endif %}">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-4 form-actions">
+                <a href="{% if lot %}{% url 'diplomas:lot_detail' lot.pk %}{% else %}{% url 'diplomas:lot_list' %}{% endif %}" class="btn btn-outline-secondary">
+                    {% if lot %}Retour à la fiche{% else %}Retour au registre{% endif %}
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    {% if is_creation %}Enregistrer le lot{% else %}Enregistrer les modifications{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

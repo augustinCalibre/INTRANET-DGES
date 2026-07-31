@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Calendrier des reunions | Intranet DGES{% endblock %}
+{% block page_title %}Calendrier des reunions{% endblock %}
+
+{% block content %}
+    <div class="panel-card mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">Vue calendrier des reunions</h3>
+                <p class="text-muted mb-0">Lecture mensuelle, reunions du jour, de la semaine et rappels internes.</p>
+            </div>
+            <div class="d-flex gap-2 page-actions">
+                <div class="btn-group view-switch" role="group" aria-label="Basculer entre les vues reunion">
+                    <a href="{% url 'meetings:list' %}?{% if status_filter %}statut={{ status_filter|urlencode }}&{% endif %}{% if search_term %}q={{ search_term|urlencode }}&{% endif %}" class="btn btn-outline-primary">Vue liste</a>
+                    <a href="{% url 'meetings:calendar' %}?{% if status_filter %}statut={{ status_filter|urlencode }}&{% endif %}{% if search_term %}q={{ search_term|urlencode }}&{% endif %}{% if month_anchor %}&month={{ month_anchor|date:'Y-m' }}{% endif %}" class="btn btn-primary">Vue calendrier</a>
+                </div>
+                <a href="{% url 'dashboard:home' %}" class="btn btn-outline-secondary">Retour au tableau de bord</a>
+                {% if can_manage_meetings %}
+                    <a href="{% url 'meetings:create' %}" class="btn btn-primary">Programmer une reunion</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="meeting-highlight panel-card mb-4">
+        {% if next_meeting %}
+            <div class="meeting-highlight-main">
+                <span class="meeting-highlight-kicker">Prochaine reunion validee</span>
+                <h3 class="meeting-highlight-title">{{ next_meeting.titre }}</h3>
+                <p class="meeting-highlight-meta">{{ next_meeting.date_heure|date:"d/m/Y H:i" }} - {{ next_meeting.salle }}</p>
+            </div>
+            <div class="meeting-countdown-card">
+                <span class="meeting-countdown-label">Compte a rebours</span>
+                <strong class="meeting-countdown-value" data-countdown-target="{{ next_meeting.date_heure|date:'c' }}">{{ next_meeting_countdown }}</strong>
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">Aucune reunion validee a venir pour le moment.</p>
+        {% endif %}
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-4">
+            <div class="panel-card h-100">
+                <div class="panel-header mb-3">
+                    <h4>Reunions du jour</h4>
+                    <span class="meeting-summary-count">{{ today_meetings|length }}</span>
+                </div>
+                {% for meeting in today_meetings %}
+                    <div class="meeting-summary-item">
+                        <div class="meeting-summary-time">{{ meeting.date_heure|date:"H:i" }}</div>
+                        <div class="meeting-summary-body">
+                            <strong>{{ meeting.titre }}</strong>
+                            <span>{{ meeting.salle }} - {{ meeting.get_statut_display }}</span>
+                        </div>
+                    </div>
+                {% empty %}
+                    <p class="text-muted mb-0">Aucune reunion aujourd'hui.</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="panel-card h-100">
+                <div class="panel-header mb-3">
+                    <h4>Cette semaine</h4>
+                    <span class="meeting-summary-count">{{ week_meetings|length }}</span>
+                </div>
+                <p class="small text-muted mb-3">Du {{ week_start|date:"d/m" }} au {{ week_end|date:"d/m/Y" }}</p>
+                {% for meeting in week_meetings %}
+                    <div class="meeting-summary-item">
+                        <div class="meeting-summary-time">{{ meeting.date_heure|date:"d/m" }}<br>{{ meeting.date_heure|date:"H:i" }}</div>
+                        <div class="meeting-summary-body">
+                            <strong>{{ meeting.titre }}</strong>
+                            <span>{{ meeting.salle }} - {{ meeting.get_statut_display }}</span>
+                        </div>
+                    </div>
+                {% empty %}
+                    <p class="text-muted mb-0">Aucune reunion sur la semaine en cours.</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="panel-card h-100">
+                <div class="panel-header mb-3">
+                    <h4>Rappels internes</h4>
+                    <span class="meeting-summary-count">{{ reminder_notifications|length }}</span>
+                </div>
+                {% for notification in reminder_notifications %}
+                    <div class="list-note info mb-2">
+                        <strong>{{ notification.titre }}</strong>
+                        <span>{{ notification.message|truncatechars:110 }}</span>
+                    </div>
+                {% empty %}
+                    <p class="text-muted mb-0">Aucun rappel recent.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-card mb-4">
+        <form method="get" class="row g-3 align-items-end">
+            <input type="hidden" name="month" value="{{ month_anchor|date:'Y-m' }}">
+            <div class="col-lg-5">
+                <label class="form-label" for="meeting-search">Recherche</label>
+                <input id="meeting-search" type="text" class="form-control" name="q" value="{{ search_term }}" placeholder="Titre, salle, agent ou service">
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label" for="meeting-status-filter">Statut</label>
+                <select id="meeting-status-filter" name="statut" class="form-select">
+                    <option value="">Tous les statuts</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2 d-grid">
+                <button type="submit" class="btn btn-outline-primary">Filtrer</button>
+            </div>
+            <div class="col-lg-2 d-grid">
+                <a href="{% url 'meetings:calendar' %}?month={{ month_anchor|date:'Y-m' }}" class="btn btn-outline-secondary">Reinitialiser</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="panel-card">
+        <div class="meeting-calendar-toolbar">
+            <a href="{% url 'meetings:calendar' %}?month={{ previous_month|date:'Y-m' }}{% if status_filter %}&statut={{ status_filter|urlencode }}{% endif %}{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="btn btn-outline-secondary">Mois precedent</a>
+            <div class="meeting-calendar-title-wrap">
+                <span class="meeting-calendar-kicker">Calendrier mensuel</span>
+                <h4 class="meeting-calendar-title">{{ month_label }}</h4>
+            </div>
+            <a href="{% url 'meetings:calendar' %}?month={{ next_month|date:'Y-m' }}{% if status_filter %}&statut={{ status_filter|urlencode }}{% endif %}{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="btn btn-outline-secondary">Mois suivant</a>
+        </div>
+
+        <div class="meeting-calendar-wrap">
+            <div class="meeting-calendar-grid">
+                {% for weekday in weekdays %}
+                    <div class="meeting-calendar-weekday">{{ weekday }}</div>
+                {% endfor %}
+
+                {% for week in calendar_weeks %}
+                    {% for day in week %}
+                        <div class="meeting-calendar-day {% if not day.in_month %}is-outside{% endif %} {% if day.is_today %}is-today{% endif %}">
+                            <div class="meeting-calendar-day-head">
+                                <span class="meeting-calendar-day-number">{{ day.date|date:"d" }}</span>
+                                <span class="meeting-calendar-day-month">{{ day.date|date:"m" }}</span>
+                            </div>
+                            <div class="meeting-calendar-day-body">
+                                {% for meeting in day.meetings %}
+                                    <a href="{% if can_manage_meetings %}{% url 'meetings:edit' meeting.pk %}{% else %}{% url 'meetings:list' %}{% endif %}" class="meeting-calendar-entry">
+                                        <span class="meeting-calendar-entry-time">{{ meeting.date_heure|date:"H:i" }}</span>
+                                        <strong>{{ meeting.titre|truncatechars:42 }}</strong>
+                                        <span class="{{ meeting.status_badge_class }}">{{ meeting.get_statut_display }}</span>
+                                    </a>
+                                {% empty %}
+                                    <div class="meeting-calendar-empty">Aucune reunion</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

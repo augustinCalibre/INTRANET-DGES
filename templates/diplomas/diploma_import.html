@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Importer des diplômes | Intranet DGES{% endblock %}
+{% block page_title %}Importer des diplômes{% endblock %}
+
+{% block content %}
+    <div class="panel-card mb-4">
+        <div class="panel-header">
+            <h4>Lot {{ lot.reference }}</h4>
+        </div>
+        <p class="text-muted mb-0">
+            {{ lot.etablissement }} · {{ lot.nombre_enregistre }} diplôme(s) déjà enregistré(s)
+            {% if lot.nombre_annonce %} sur {{ lot.nombre_annonce }} annoncé(s){% endif %}.
+        </p>
+    </div>
+
+    {% if not rows %}
+        <div class="row g-4">
+            <div class="col-xl-7">
+                <div class="panel-card form-card">
+                    <div class="panel-header">
+                        <h4>Étape 1 — Déposer le fichier</h4>
+                    </div>
+                    <form method="post" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.fichier.id_for_label }}">{{ form.fichier.label }}</label>
+                            {{ form.fichier }}
+                            <div class="form-text">{{ form.fichier.help_text }}</div>
+                            {% for error in form.fichier.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center form-actions">
+                            <a href="{% url 'diplomas:lot_detail' lot.pk %}" class="btn btn-outline-secondary">Retour au lot</a>
+                            <button type="submit" class="btn btn-primary">Analyser le fichier</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="col-xl-5">
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <h4>Colonnes attendues</h4>
+                    </div>
+                    <p class="text-muted small">
+                        La première ligne du fichier doit contenir les intitulés de colonnes. L'ordre n'a pas
+                        d'importance et les majuscules, accents ou variantes courantes sont reconnus.
+                    </p>
+                    <ul class="diploma-column-list">
+                        <li><strong>Nom</strong><span>Obligatoire — nom du bénéficiaire</span></li>
+                        <li><strong>Numéro</strong><span>Obligatoire — numéro du diplôme</span></li>
+                        <li><strong>Filière</strong><span>Optionnel</span></li>
+                        <li><strong>Établissement</strong><span>Optionnel — celui du lot par défaut</span></li>
+                        <li><strong>Année</strong><span>Optionnel — année académique</span></li>
+                        <li><strong>Observations</strong><span>Optionnel</span></li>
+                    </ul>
+                    <p class="text-muted small mb-0">
+                        Rien n'est enregistré avant votre validation : un aperçu ligne par ligne vous est
+                        présenté à l'étape suivante.
+                    </p>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="panel-card">
+            <div class="panel-header">
+                <h4>Étape 2 — Vérifier l'aperçu</h4>
+            </div>
+
+            <div class="diploma-import-summary">
+                <div class="diploma-metric">
+                    <span>Lignes lues</span>
+                    <strong>{{ resume.total }}</strong>
+                </div>
+                <div class="diploma-metric is-success">
+                    <span>Prêtes à importer</span>
+                    <strong>{{ resume.valides }}</strong>
+                </div>
+                <div class="diploma-metric {% if resume.rejetes %}is-danger{% endif %}">
+                    <span>Lignes rejetées</span>
+                    <strong>{{ resume.rejetes }}</strong>
+                </div>
+            </div>
+
+            {% if resume.rejetes %}
+                <div class="list-note warning mt-3">
+                    <strong>{{ resume.rejetes }} ligne(s) ne seront pas importées</strong>
+                    <span>Corrigez le fichier puis relancez l'import, ou poursuivez sans ces lignes.</span>
+                </div>
+            {% endif %}
+
+            <div class="table-responsive mt-3">
+                <table class="table align-middle table-sm">
+                    <thead>
+                        <tr>
+                            <th>Ligne</th>
+                            <th>Nom</th>
+                            <th>Numéro</th>
+                            <th>Filière</th>
+                            <th>Année</th>
+                            <th>État</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            <tr class="{% if not row.is_valid %}diploma-row-anomaly{% endif %}">
+                                <td>{{ row.line }}</td>
+                                <td>{{ row.data.nom_beneficiaire|default:"-" }}</td>
+                                <td>{{ row.data.numero_diplome|default:"-" }}</td>
+                                <td>{{ row.data.filiere|default:"-" }}</td>
+                                <td>{{ row.data.annee_academique|default:"-" }}</td>
+                                <td>
+                                    {% if row.is_valid %}
+                                        <span class="badge diploma-status-compliant">À importer</span>
+                                    {% else %}
+                                        <span class="badge diploma-status-anomaly">Rejetée</span>
+                                        {% for error in row.errors %}
+                                            <small class="d-block text-danger">{{ error }}</small>
+                                        {% endfor %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4 form-actions">
+                <a href="{% url 'diplomas:diploma_import' lot.pk %}" class="btn btn-outline-secondary">Choisir un autre fichier</a>
+                {% if valid_rows_json %}
+                    <form
+                        method="post"
+                        data-confirm-form="Importer {{ resume.valides }} diplôme(s) dans le lot {{ lot.reference }} ?"
+                        data-confirm-title="Confirmer l'import"
+                        data-confirm-accept="Importer"
+                    >
+                        {% csrf_token %}
+                        <input type="hidden" name="rows_json" value="{{ valid_rows_json }}">
+                        <button type="submit" class="btn btn-primary">Importer {{ resume.valides }} diplôme(s)</button>
+                    </form>
+                {% else %}
+                    <span class="text-danger">Aucune ligne exploitable : corrigez le fichier avant de réessayer.</span>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

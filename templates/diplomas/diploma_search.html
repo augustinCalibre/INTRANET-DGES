@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Recherche de diplôme | Intranet DGES{% endblock %}
+{% block page_title %}Recherche de diplôme{% endblock %}
+
+{% block content %}
+    <div class="panel-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">Retrouver un diplôme</h3>
+                <p class="text-muted mb-0">
+                    Recherche par nom du bénéficiaire, numéro, filière, établissement ou référence de lot.
+                </p>
+            </div>
+            <a href="{% url 'diplomas:lot_list' %}" class="btn btn-outline-secondary">Registre des lots</a>
+        </div>
+
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-lg-5">
+                <label class="form-label" for="diplomaSearch">Nom, numéro, filière ou établissement</label>
+                <input
+                    type="search"
+                    class="form-control"
+                    id="diplomaSearch"
+                    name="q"
+                    value="{{ search_term }}"
+                    placeholder="Ex. : Mukendi, D-2026-0148, Droit"
+                    autofocus
+                >
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label" for="diplomaStatus">Statut</label>
+                <select name="statut" id="diplomaStatus" class="form-select">
+                    <option value="">Tous les statuts</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label" for="diplomaYear">Année</label>
+                <input type="text" class="form-control" id="diplomaYear" name="annee" value="{{ year_filter }}" placeholder="2024-2025">
+            </div>
+            <div class="col-lg-2 d-grid align-self-end">
+                <button type="submit" class="btn btn-primary">Rechercher</button>
+            </div>
+        </form>
+
+        <div class="diploma-status-strip mb-4" role="list">
+            {% for item in status_counts %}
+                <a
+                    href="{% url 'diplomas:search' %}?statut={{ item.key }}"
+                    class="diploma-status-chip {% if status_filter == item.key %}is-active{% endif %}"
+                    role="listitem"
+                >
+                    <span>{{ item.label }}</span>
+                    <strong>{{ item.total }}</strong>
+                </a>
+            {% endfor %}
+        </div>
+
+        {% if results is None %}
+            <div class="diploma-empty">
+                <strong>Lancez une recherche</strong>
+                <span>Saisissez un nom, un numéro de diplôme ou choisissez un statut ci-dessus.</span>
+            </div>
+        {% else %}
+            <p class="text-muted small">
+                {{ page_obj.paginator.count }} résultat{{ page_obj.paginator.count|pluralize }}.
+            </p>
+            <div class="table-responsive">
+                <table class="table align-middle stacked-mobile-table">
+                    <thead>
+                        <tr>
+                            <th>Bénéficiaire</th>
+                            <th>Numéro</th>
+                            <th>Filière</th>
+                            <th>Établissement</th>
+                            <th>Année</th>
+                            <th>Lot</th>
+                            <th>Statut</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for diplome in results %}
+                            <tr {% if diplome.is_anomalie %}class="diploma-row-anomaly"{% endif %}>
+                                <td data-label="Bénéficiaire">
+                                    <a href="{% url 'diplomas:diploma_detail' diplome.pk %}">{{ diplome.nom_beneficiaire }}</a>
+                                </td>
+                                <td data-label="Numéro">{{ diplome.numero_diplome }}</td>
+                                <td data-label="Filière">{{ diplome.filiere|default:"-" }}</td>
+                                <td data-label="Établissement">{{ diplome.etablissement_effectif|default:"-" }}</td>
+                                <td data-label="Année">{{ diplome.annee_academique|default:"-" }}</td>
+                                <td data-label="Lot">
+                                    <a href="{% url 'diplomas:lot_detail' diplome.lot_id %}">{{ diplome.lot.reference }}</a>
+                                </td>
+                                <td data-label="Statut"><span class="{{ diplome.status_badge_class }}">{{ diplome.get_statut_display }}</span></td>
+                                <td data-label="Action" class="text-end table-actions">
+                                    <div class="action-icon-bar justify-content-end">
+                                        <a
+                                            href="{% url 'diplomas:diploma_detail' diplome.pk %}"
+                                            class="action-icon-button action-icon-button-neutral"
+                                            aria-label="Consulter la fiche de {{ diplome.nom_beneficiaire }}"
+                                            title="Consulter la fiche"
+                                        >
+                                            {% include "includes/action_icon.html" with icon="view" %}
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="8">
+                                    <div class="diploma-empty">
+                                        <strong>Aucun diplôme trouvé</strong>
+                                        <span>Vérifiez l'orthographe du nom ou essayez le numéro du diplôme.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% include "includes/pagination.html" %}
+        {% endif %}
+    </div>
+{% endblock %}

@@ -1,0 +1,1018 @@
+/* ============================================================
+   Intranet DGES — systeme d'interface (refonte 2026)
+
+   Cette feuille est chargee APRES app.css et diplomas.css. Elle porte
+   deux responsabilites :
+
+   1. Definir le jeu complet de tokens pour les DEUX themes. Auparavant
+      le theme clair n'en declarait que neuf et une trentaine d'autres
+      n'existaient que dans le theme sombre : les regles qui les
+      utilisaient etaient donc invalides en mode clair. Tout est
+      desormais symetrique.
+
+   2. Poser l'apparence « moderne aeree » : de l'espace, une hierarchie
+      typographique nette, des surfaces calmes, et la couleur reservee
+      au sens (statuts, actions) plutot qu'a la decoration.
+
+   Convention : on ne cree pas de nouvelles classes quand une classe
+   existante fait l'affaire, afin que les 17 gabarits beneficient de la
+   refonte sans etre reecrits un par un.
+   ============================================================ */
+
+/* ------------------------------------------------ 1. Tokens clairs */
+
+:root {
+    /* Surfaces */
+    --page-bg: #f4f7fa;
+    --page-gradient: #f4f7fa;
+    --card-bg: #ffffff;
+    --card-bg-strong: #ffffff;
+    --surface-soft: #f7f9fc;
+    --surface-soft-strong: #f1f5f9;
+    --surface-muted: #e9eff5;
+
+    /* Traits */
+    --border-soft: #e4eaf1;
+    --border-strong: #d0dae4;
+
+    /* Texte */
+    --text-main: #16232f;
+    --text-muted: #64788c;
+
+    /* Couleurs de sens */
+    --primary: #1b6398;
+    --primary-strong: #14507d;
+    --primary-deep: #0e3555;
+    --accent-green: #17855a;
+    --accent-green-deep: #0f6644;
+    --accent-glow: rgba(23, 133, 90, 0.12);
+    --danger: #c0453b;
+    --warning: #a8711c;
+    --info: #1b6398;
+
+    /* Barre laterale */
+    --sidebar-bg: #102a3e;
+    --sidebar-gradient: #102a3e;
+    --sidebar-accent: #93b3cb;
+    --nav-link-color: #cadcea;
+    --nav-link-hover: rgba(255, 255, 255, 0.07);
+    --nav-badge-bg: rgba(255, 255, 255, 0.14);
+    --nav-badge-color: #ffffff;
+
+    /* En-tete et tableaux */
+    --topbar-bg: rgba(255, 255, 255, 0.86);
+    --table-row-hover: #f7f9fc;
+
+    /* Champs de saisie */
+    --input-bg: #ffffff;
+    --input-border: #d7e0e9;
+    --focus-ring: 0 0 0 3px rgba(27, 99, 152, 0.18);
+
+    /* Elevation : deux couches tres discretes, jamais de halo colore */
+    --panel-shadow: 0 1px 2px rgba(16, 32, 48, 0.04), 0 8px 24px rgba(16, 32, 48, 0.05);
+    --panel-shadow-strong: 0 2px 4px rgba(16, 32, 48, 0.05), 0 16px 36px rgba(16, 32, 48, 0.09);
+
+    /* Fond de la page de connexion */
+    --public-gradient: linear-gradient(160deg, #f4f7fa 0%, #e8eff6 100%);
+
+    /* Geometrie */
+    --radius-pill: 999px;
+    --radius-sm: 10px;
+    --radius-md: 13px;
+    --radius-lg: 18px;
+
+    --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --transition: 0.16s ease;
+
+    color-scheme: light;
+}
+
+/* ------------------------------------------------ 2. Tokens sombres */
+
+html[data-theme="dark"] {
+    --page-bg: #0b1420;
+    --page-gradient: #0b1420;
+    --card-bg: #111f2d;
+    --card-bg-strong: #162737;
+    --surface-soft: #16242f;
+    --surface-soft-strong: #1a2c3a;
+    --surface-muted: #1f3444;
+
+    --border-soft: #1e3040;
+    --border-strong: #2b4257;
+
+    --text-main: #e4eef6;
+    --text-muted: #93a8b9;
+
+    --primary: #6fb2ef;
+    --primary-strong: #92c7f6;
+    /* En mode sombre, --primary-deep sert de couleur de titre : il doit etre clair. */
+    --primary-deep: #eef5fb;
+    --accent-green: #4cc484;
+    --accent-green-deep: #7fd9a5;
+    --accent-glow: rgba(76, 196, 132, 0.16);
+    --danger: #e88a80;
+    --warning: #edc472;
+    --info: #8fc6ff;
+
+    --sidebar-bg: #0a1622;
+    --sidebar-gradient: #0a1622;
+    --sidebar-accent: #7f9cb4;
+    --nav-link-color: #c4d7e6;
+    --nav-link-hover: rgba(111, 178, 239, 0.11);
+    --nav-badge-bg: rgba(111, 178, 239, 0.16);
+    --nav-badge-color: #dcecfa;
+
+    --topbar-bg: rgba(11, 20, 32, 0.82);
+    --table-row-hover: rgba(111, 178, 239, 0.05);
+
+    --input-bg: #16242f;
+    --input-border: #2a4055;
+    --focus-ring: 0 0 0 3px rgba(111, 178, 239, 0.2);
+
+    --panel-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px rgba(0, 0, 0, 0.26);
+    --panel-shadow-strong: 0 2px 6px rgba(0, 0, 0, 0.34), 0 18px 40px rgba(0, 0, 0, 0.34);
+
+    --public-gradient: linear-gradient(160deg, #0b1420 0%, #101f2e 100%);
+
+    color-scheme: dark;
+}
+
+/* --------------------------------- 3. Base et typographie */
+
+body {
+    background: var(--page-bg);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    font-size: 0.94rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.bg-app,
+.public-shell {
+    background: var(--page-bg);
+}
+
+.public-shell {
+    background: var(--public-gradient);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--primary-deep);
+    font-weight: 700;
+    letter-spacing: -0.011em;
+}
+
+/* Chiffres a largeur fixe uniquement la ou des nombres s'alignent
+   verticalement : colonnes de tableau, graduations, compteurs de liste. Un
+   grand nombre isole garde les chiffres proportionnels, sinon « 121 » paraît
+   anormalement espace a cette taille. */
+.diploma-status-chip strong,
+td[data-label="Numéro"],
+.pagination-status {
+    font-variant-numeric: tabular-nums;
+}
+
+a {
+    color: var(--primary);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+}
+
+a:hover {
+    color: var(--primary-strong);
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* Un seul style de focus dans toute l'application */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid transparent;
+    box-shadow: var(--focus-ring);
+    border-radius: var(--radius-sm);
+}
+
+/* ------------- 4. Retrait des decorations de l'ancienne interface */
+
+/* Liseres degrades sur chaque carte, halos radiaux des tuiles, points
+   degrades des raccourcis, flou d'arriere-plan : c'est cette
+   accumulation qui donnait l'impression de surcharge. */
+.panel-card::before,
+.stat-card::before,
+.dashboard-quick-link::before,
+.stat-card-visitors::after,
+.stat-card-tasks::after,
+.stat-card-validation::after,
+.stat-card-documents::after,
+.login-showcase::before,
+.login-showcase::after {
+    content: none;
+}
+
+.panel-card,
+.stat-card {
+    backdrop-filter: none;
+}
+
+/* ------------------------------------------ 5. Coquille */
+
+.app-shell {
+    display: flex;
+    align-items: stretch;
+    min-height: 100vh;
+}
+
+.sidebar {
+    width: 264px;
+    flex: 0 0 264px;
+    padding: 1.5rem 1rem;
+    background: var(--sidebar-bg);
+    border-right: none;
+}
+
+.sidebar-head {
+    padding: 0 0.35rem 1.25rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.brand-logo {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    border-radius: 11px;
+    background: #ffffff;
+    object-fit: contain;
+    padding: 3px;
+}
+
+.sidebar-brand small {
+    color: var(--sidebar-accent);
+    letter-spacing: 0.11em;
+    font-size: 0.62rem;
+    font-weight: 700;
+}
+
+.sidebar-brand h1 {
+    margin: 0.1rem 0 0;
+    color: #ffffff;
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.brand-hostname {
+    color: var(--sidebar-accent);
+    font-size: 0.7rem;
+    opacity: 0.85;
+}
+
+.sidebar-nav {
+    gap: 0.15rem;
+}
+
+.sidebar-nav .nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-sm);
+    color: var(--nav-link-color);
+    font-size: 0.88rem;
+    font-weight: 500;
+    transition: background-color var(--transition), color var(--transition);
+}
+
+.sidebar-nav .nav-link:hover {
+    background: var(--nav-link-hover);
+    color: #ffffff;
+}
+
+/* L'element actif est marque par un aplat et un liseré lateral :
+   lisible sans recourir a une couleur vive. */
+.sidebar-nav .nav-link.active {
+    position: relative;
+    background: rgba(255, 255, 255, 0.11);
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.sidebar-nav .nav-link.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 1.1rem;
+    border-radius: var(--radius-pill);
+    background: var(--primary-strong);
+}
+
+.nav-link-badge {
+    min-width: 1.4rem;
+    padding: 0.1rem 0.42rem;
+    border-radius: var(--radius-pill);
+    background: var(--nav-badge-bg);
+    color: var(--nav-badge-color);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.sidebar-toggle {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: var(--radius-sm);
+    color: #ffffff;
+    font-size: 0.85rem;
+}
+
+.main-panel {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 2rem;
+    background: var(--topbar-bg);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.eyebrow {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+    font-size: 0.66rem;
+    font-weight: 700;
+}
+
+.page-title {
+    margin: 0.15rem 0 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.content-wrap {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 1440px;
+    padding: 1.75rem 2rem 2.5rem;
+}
+
+/* Barre d'outils de l'en-tete */
+
+.utility-button {
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    background: var(--card-bg);
+    color: var(--text-main);
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 0.45rem 0.7rem;
+    box-shadow: none;
+    transition: border-color var(--transition), background-color var(--transition);
+}
+
+.utility-button:hover,
+.utility-button:focus-visible {
+    border-color: var(--border-strong);
+    background: var(--surface-soft);
+}
+
+.next-meeting-chip {
+    gap: 0.6rem;
+    padding: 0.45rem 0.8rem;
+}
+
+.next-meeting-icon {
+    padding: 0.16rem 0.5rem;
+    border-radius: var(--radius-pill);
+    background: var(--surface-muted);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-size: 0.62rem;
+    font-weight: 700;
+}
+
+.next-meeting-copy strong {
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.user-panel {
+    gap: 0.65rem;
+    padding-left: 0.85rem;
+    border-left: 1px solid var(--border-soft);
+}
+
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border-radius: var(--radius-pill);
+    background: var(--primary);
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+/* ------------------------------------------ 6. Surfaces */
+
+.panel-card,
+.stat-card,
+.form-card {
+    border-radius: var(--radius-lg);
+    background: var(--card-bg);
+    border: 1px solid var(--border-soft);
+    box-shadow: var(--panel-shadow);
+}
+
+.panel-card {
+    padding: 1.5rem;
+}
+
+.panel-card:hover,
+.stat-card:hover {
+    box-shadow: var(--panel-shadow);
+    border-color: var(--border-soft);
+}
+
+.panel-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1.1rem;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.panel-header h4,
+.section-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.page-section-header {
+    margin-bottom: 1.35rem;
+}
+
+/* ------------------------------------------ 7. Indicateurs */
+
+.stat-card {
+    display: grid;
+    align-content: start;
+    gap: 0.3rem;
+    min-height: 0;
+    padding: 1.35rem 1.4rem;
+    text-decoration: none;
+}
+
+.stat-label,
+.stat-card .stat-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.stat-card strong {
+    font-size: 2.05rem;
+    line-height: 1.05;
+    font-weight: 700;
+    color: var(--primary-deep);
+}
+
+.stat-card small {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+
+.stat-card-link {
+    transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+.stat-card-link:hover,
+.stat-card-link:focus-visible {
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    box-shadow: var(--panel-shadow-strong);
+}
+
+.mini-stat {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-soft);
+    background: var(--surface-soft);
+    text-decoration: none;
+}
+
+.mini-stat span {
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    font-weight: 600;
+}
+
+.mini-stat strong {
+    color: var(--primary-deep);
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.mini-stat-link:hover,
+.mini-stat-link:focus-visible {
+    border-color: var(--border-strong);
+    background: var(--surface-soft-strong);
+}
+
+/* Encarts d'information et d'alerte */
+
+.list-note {
+    display: grid;
+    gap: 0.2rem;
+    margin-bottom: 0.6rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface-soft);
+    text-decoration: none;
+}
+
+.list-note strong {
+    color: var(--primary-deep);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.list-note span {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+.list-note-link:hover,
+.list-note-link:focus-visible {
+    border-color: var(--border-strong);
+    background: var(--surface-soft-strong);
+}
+
+.list-note.info {
+    border-left-color: var(--primary);
+}
+
+.list-note.warning {
+    border-left-color: var(--warning);
+}
+
+.list-note.danger {
+    border-left-color: var(--danger);
+}
+
+.filter-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    background: var(--surface-soft);
+}
+
+.filter-notice-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.66rem;
+    font-weight: 700;
+}
+
+/* ------------------------------------------ 8. Boutons */
+
+.btn {
+    border-radius: var(--radius-sm);
+    padding: 0.52rem 1rem;
+    font-size: 0.87rem;
+    font-weight: 600;
+    box-shadow: none;
+    transition: background-color var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.btn:hover,
+.btn:focus-visible {
+    transform: none;
+}
+
+.btn-sm {
+    padding: 0.36rem 0.72rem;
+    font-size: 0.81rem;
+    border-radius: var(--radius-sm);
+}
+
+.btn-primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #ffffff;
+}
+
+.btn-primary:hover,
+.btn-primary:focus-visible {
+    background: var(--primary-strong);
+    border-color: var(--primary-strong);
+    color: #ffffff;
+}
+
+.btn-outline-primary {
+    border-color: var(--primary);
+    background: transparent;
+    color: var(--primary);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus-visible {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #ffffff;
+}
+
+.btn-outline-secondary {
+    border-color: var(--border-strong);
+    background: var(--card-bg);
+    color: var(--text-main);
+}
+
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus-visible {
+    border-color: var(--text-muted);
+    background: var(--surface-soft);
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .btn-primary {
+    color: #06131f;
+}
+
+html[data-theme="dark"] .btn-primary:hover,
+html[data-theme="dark"] .btn-primary:focus-visible {
+    color: #06131f;
+}
+
+html[data-theme="dark"] .btn-outline-primary:hover,
+html[data-theme="dark"] .btn-outline-primary:focus-visible {
+    color: #06131f;
+}
+
+/* ------------------------------------------ 9. Formulaires */
+
+.form-label {
+    margin-bottom: 0.35rem;
+    color: var(--text-main);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.form-control,
+.form-select,
+.flatpickr-input[readonly] {
+    padding: 0.58rem 0.8rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--input-border);
+    background-color: var(--input-bg);
+    color: var(--text-main);
+    font-size: 0.89rem;
+    box-shadow: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.form-control:focus,
+.form-select:focus,
+.flatpickr-input[readonly]:focus {
+    border-color: var(--primary);
+    background-color: var(--input-bg);
+    color: var(--text-main);
+    box-shadow: var(--focus-ring);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+    opacity: 0.75;
+}
+
+.form-text {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+
+.form-check-input {
+    border-color: var(--input-border);
+}
+
+.form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+.form-card {
+    padding: 1.6rem;
+}
+
+.form-actions {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-soft);
+}
+
+/* ------------------------------------------ 10. Tableaux */
+
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--text-main);
+    margin-bottom: 0;
+    border-color: var(--border-soft);
+}
+
+.table > thead > tr > th {
+    padding: 0.6rem 0.85rem;
+    border-bottom: 1px solid var(--border-soft);
+    background: transparent;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-size: 0.68rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.table > tbody > tr > td {
+    padding: 0.8rem 0.85rem;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+    font-size: 0.88rem;
+}
+
+.table > tbody > tr:last-child > td {
+    border-bottom: none;
+}
+
+.table tbody tr {
+    transition: background-color var(--transition);
+}
+
+.table tbody tr:hover {
+    background: var(--table-row-hover);
+}
+
+.table-sm > tbody > tr > td,
+.table-sm > thead > tr > th {
+    padding: 0.5rem 0.7rem;
+}
+
+/* ------------------------------------------ 11. Pastilles */
+
+.badge {
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.73rem;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.badge.text-bg-light {
+    background: var(--surface-muted);
+    color: var(--text-main);
+}
+
+/* ------------------------------------------ 12. Messages */
+
+.alert {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-soft);
+    border-left-width: 3px;
+    background: var(--card-bg);
+    color: var(--text-main);
+    font-size: 0.88rem;
+    box-shadow: var(--panel-shadow);
+}
+
+.alert-success {
+    border-left-color: var(--accent-green);
+}
+
+.alert-danger {
+    border-left-color: var(--danger);
+}
+
+.alert-warning {
+    border-left-color: var(--warning);
+}
+
+.alert-info {
+    border-left-color: var(--primary);
+}
+
+/* ------------------------------------------ 13. Tableau de bord */
+
+/* Remplace l'ancien bandeau decoratif : un titre, une date, des
+   raccourcis. Aucune phrase de remplissage, aucun degrade. */
+.page-intro {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.page-intro-title {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.page-intro-text {
+    margin: 0.25rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.quick-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.9rem;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    background: var(--card-bg);
+    color: var(--text-main);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: var(--panel-shadow);
+    transition: border-color var(--transition), background-color var(--transition), transform var(--transition);
+}
+
+.quick-action:hover,
+.quick-action:focus-visible {
+    transform: translateY(-1px);
+    border-color: var(--border-strong);
+    background: var(--surface-soft);
+    color: var(--text-main);
+    text-decoration: none;
+}
+
+.quick-action-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-size: 0.62rem;
+    font-weight: 700;
+}
+
+.dashboard-content-row {
+    align-items: flex-start;
+}
+
+/* ------------------------------------------ 14. Module diplomes */
+
+.diploma-status-chip {
+    padding: 0.42rem 0.8rem;
+    border-radius: var(--radius-pill);
+    background: var(--card-bg);
+    font-size: 0.78rem;
+}
+
+.diploma-status-chip.is-active {
+    border-color: var(--primary);
+    background: var(--surface-soft-strong);
+}
+
+.diploma-metric,
+.diploma-step,
+.diploma-transition-card,
+.diploma-withdraw-card {
+    border-radius: var(--radius-md);
+    background: var(--surface-soft);
+}
+
+.diploma-metric strong {
+    font-size: 1.45rem;
+}
+
+.diploma-progress {
+    background: var(--surface-muted);
+}
+
+.diploma-empty {
+    border-radius: var(--radius-lg);
+    padding: 2.5rem 1.25rem;
+}
+
+.pagination-bar {
+    border-top-color: var(--border-soft);
+}
+
+/* ------------------------------------------ 15. Mouvement */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
+
+/* ------------------------------------------ 16. Responsive */
+
+@media (max-width: 991.98px) {
+    .app-shell {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        flex: 0 0 auto;
+        padding: 1rem;
+    }
+
+    .sidebar-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .topbar,
+    .content-wrap {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .topbar {
+        position: static;
+    }
+
+    .page-title {
+        font-size: 1.3rem;
+    }
+
+    .panel-card,
+    .form-card {
+        padding: 1.15rem;
+    }
+
+    .page-intro {
+        align-items: flex-start;
+    }
+
+    .stat-card strong {
+        font-size: 1.8rem;
+    }
+}

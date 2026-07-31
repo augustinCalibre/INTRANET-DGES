@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Reunions | Intranet DGES{% endblock %}
+{% block page_title %}Programmation des reunions{% endblock %}
+
+{% block content %}
+    <div class="panel-card mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">Calendrier interne des reunions</h3>
+                <p class="text-muted mb-0">Consultation, validation et suivi des reunions internes de la DGES.</p>
+            </div>
+            <div class="d-flex gap-2 page-actions">
+                <div class="btn-group view-switch" role="group" aria-label="Basculer entre les vues reunion">
+                    <a href="{% url 'meetings:list' %}?{% if status_filter %}statut={{ status_filter|urlencode }}&{% endif %}{% if search_term %}q={{ search_term|urlencode }}&{% endif %}" class="btn btn-primary">Vue liste</a>
+                    <a href="{% url 'meetings:calendar' %}?{% if status_filter %}statut={{ status_filter|urlencode }}&{% endif %}{% if search_term %}q={{ search_term|urlencode }}&{% endif %}" class="btn btn-outline-primary">Vue calendrier</a>
+                </div>
+                <a href="{% url 'meetings:salle_list' %}" class="btn btn-outline-secondary">Salles</a>
+                <a href="{% url 'meetings:create' %}" class="btn btn-primary">Programmer une réunion</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="meeting-highlight panel-card mb-4">
+        {% if next_meeting %}
+            <div class="meeting-highlight-main">
+                <span class="meeting-highlight-kicker">Prochaine reunion</span>
+                <h3 class="meeting-highlight-title">{{ next_meeting.titre }}</h3>
+                <p class="meeting-highlight-meta">
+                    {{ next_meeting.date_heure|date:"d/m/Y H:i" }} - {{ next_meeting.salle }}
+                </p>
+            </div>
+            <div class="meeting-countdown-card">
+                <span class="meeting-countdown-label">Compte a rebours</span>
+                <strong class="meeting-countdown-value" data-countdown-target="{{ next_meeting.date_heure|date:'c' }}">{{ next_meeting_countdown }}</strong>
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">Aucune reunion validee a venir pour le moment.</p>
+        {% endif %}
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-4">
+            <div class="panel-card h-100">
+                <div class="panel-header mb-3">
+                    <h4>Reunions du jour</h4>
+                    <span class="meeting-summary-count">{{ today_meetings|length }}</span>
+                </div>
+                <p class="small text-muted mb-3">{{ today_label|date:"d/m/Y" }}</p>
+                {% for meeting in today_meetings %}
+                    <div class="meeting-summary-item">
+                        <div class="meeting-summary-time">{{ meeting.date_heure|date:"H:i" }}</div>
+                        <div class="meeting-summary-body">
+                            <strong>{{ meeting.titre }}</strong>
+                            <span>{{ meeting.salle }} - {{ meeting.get_statut_display }}</span>
+                        </div>
+                    </div>
+                {% empty %}
+                    <p class="text-muted mb-0">Aucune reunion planifiee aujourd'hui.</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="panel-card h-100">
+                <div class="panel-header mb-3">
+                    <h4>Cette semaine</h4>
+                    <span class="meeting-summary-count">{{ week_meetings|length }}</span>
+                </div>
+                <p class="small text-muted mb-3">Du {{ week_start|date:"d/m" }} au {{ week_end|date:"d/m/Y" }}</p>
+                {% for meeting in week_meetings %}
+                    <div class="meeting-summary-item">
+                        <div class="meeting-summary-time">{{ meeting.date_heure|date:"d/m" }}<br>{{ meeting.date_heure|date:"H:i" }}</div>
+                        <div class="meeting-summary-body">
+                            <strong>{{ meeting.titre }}</strong>
+                            <span>{{ meeting.salle }} - {{ meeting.get_statut_display }}</span>
+                        </div>
+                    </div>
+                {% empty %}
+                    <p class="text-muted mb-0">Aucune reunion sur la semaine en cours.</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="panel-card h-100">
+                <div class="panel-header mb-3">
+                    <h4>Rappels internes</h4>
+                    <span class="meeting-summary-count">{{ reminder_notifications|length }}</span>
+                </div>
+                <p class="small text-muted mb-3">Rappels automatiques emis a 1 heure et 15 minutes avant la reunion.</p>
+                {% for notification in reminder_notifications %}
+                    <div class="list-note info mb-2">
+                        <strong>{{ notification.titre }}</strong>
+                        <span>{{ notification.message|truncatechars:110 }}</span>
+                    </div>
+                {% empty %}
+                    <p class="text-muted mb-0">Aucun rappel recent pour le moment.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-card">
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-lg-5">
+                <input type="text" class="form-control" name="q" value="{{ search_term }}" placeholder="Titre, salle, agent ou service">
+            </div>
+            <div class="col-lg-3">
+                <select name="statut" class="form-select">
+                    <option value="">Tous les statuts</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2 d-grid">
+                <button type="submit" class="btn btn-outline-primary">Filtrer</button>
+            </div>
+            <div class="col-lg-2 d-grid">
+                <a href="{% url 'meetings:list' %}" class="btn btn-outline-secondary">Afficher tout</a>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table align-middle stacked-mobile-table">
+                <thead>
+                    <tr>
+                        <th>Reunion</th>
+                        <th>Date</th>
+                        <th>Salle</th>
+                        <th>Services</th>
+                        <th>Invites</th>
+                        <th>Statut</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for meeting in meetings %}
+                        <tr>
+                            <td data-label="Reunion">
+                                <strong>{{ meeting.titre }}</strong>
+                                <div class="small text-muted">{{ meeting.description|default:"Sans ordre du jour"|truncatechars:100 }}</div>
+                            </td>
+                            <td data-label="Date">
+                                <div>{{ meeting.date_heure|date:"d/m/Y H:i" }}</div>
+                                {% if meeting.is_upcoming %}
+                                    <div class="meeting-inline-countdown small" data-countdown-target="{{ meeting.date_heure|date:'c' }}">A venir</div>
+                                {% endif %}
+                            </td>
+                            <td data-label="Salle">{{ meeting.salle }}</td>
+                            <td data-label="Services">
+                                {% for service in meeting.services_concernes.all %}
+                                    <div>{{ service.nom }}</div>
+                                {% empty %}
+                                    -
+                                {% endfor %}
+                            </td>
+                            <td data-label="Invites">
+                                {% for member in meeting.membres_invites.all %}
+                                    <div>{{ member.get_full_name|default:member.username }}</div>
+                                {% empty %}
+                                    -
+                                {% endfor %}
+                            </td>
+                            <td data-label="Statut"><span class="{{ meeting.status_badge_class }}">{{ meeting.get_statut_display }}</span></td>
+                            <td data-label="Action" class="text-end table-actions">
+                                {% if can_manage_meetings %}
+                                    <div class="action-icon-bar justify-content-end">
+                                        <a
+                                            href="{% url 'meetings:edit' meeting.pk %}"
+                                            class="action-icon-button action-icon-button-primary"
+                                            aria-label="Modifier la reunion {{ meeting.titre }}"
+                                            title="Modifier"
+                                        >
+                                            {% include "includes/action_icon.html" with icon="edit" %}
+                                        </a>
+                                        {% if meeting.statut == 'reportee' %}
+                                            <form method="post" action="{% url 'meetings:status' meeting.pk 'validee' %}" class="action-icon-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                <button
+                                                    type="submit"
+                                                    class="action-icon-button action-icon-button-success"
+                                                    aria-label="Revalider la reunion {{ meeting.titre }}"
+                                                    title="Revalider"
+                                                >
+                                                    {% include "includes/action_icon.html" with icon="revalidate" %}
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                        {% if meeting.statut != 'tenue' and meeting.statut != 'annulee' and meeting.date_heure <= current_time %}
+                                            <form method="post" action="{% url 'meetings:status' meeting.pk 'tenue' %}" class="action-icon-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                <button
+                                                    type="submit"
+                                                    class="action-icon-button action-icon-button-neutral"
+                                                    aria-label="Marquer comme tenue la reunion {{ meeting.titre }}"
+                                                    title="Marquer comme tenue"
+                                                >
+                                                    {% include "includes/action_icon.html" with icon="done" %}
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                        {% if can_delete_meetings %}
+                                            <form
+                                                method="post"
+                                                action="{% url 'meetings:delete' meeting.pk %}"
+                                                class="action-icon-form"
+                                                data-confirm-form="Confirmer la suppression de cette reunion ?"
+                                                data-confirm-title="Supprimer la reunion"
+                                                data-confirm-accept="Supprimer"
+                                                data-confirm-tone="danger"
+                                            >
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                <button
+                                                    type="submit"
+                                                    class="action-icon-button action-icon-button-danger"
+                                                    aria-label="Supprimer la reunion {{ meeting.titre }}"
+                                                    title="Supprimer"
+                                                >
+                                                    {% include "includes/action_icon.html" with icon="delete" %}
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-muted">Aucune reunion disponible.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

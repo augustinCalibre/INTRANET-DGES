@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Documents | Intranet DGES{% endblock %}
+{% block page_title %}Gestion documentaire{% endblock %}
+
+{% block content %}
+    <div class="panel-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-section-header">
+            <div>
+                {% if is_courrier_view %}
+                    <h3 class="h5 mb-1">Registre des courriers</h3>
+                    <p class="text-muted mb-0">Courriers entrants, sortants et documents de liaison entre services.</p>
+                {% else %}
+                    <h3 class="h5 mb-1">Documents internes</h3>
+                    <p class="text-muted mb-0">Classement, accès par service et archivage.</p>
+                {% endif %}
+            </div>
+            <div class="d-flex gap-2 page-actions">
+                <a href="{% url 'dashboard:home' %}" class="btn btn-outline-secondary">Retour au tableau de bord</a>
+                {% if can_manage %}
+                    {% if is_courrier_view %}
+                        <a href="{% url 'documents:create' %}?type=courrier" class="btn btn-primary">Ajouter un courrier</a>
+                    {% else %}
+                        <a href="{% url 'documents:create' %}" class="btn btn-primary">Ajouter un document</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        {% if active_filter_label %}
+            <div class="filter-notice mb-4">
+                <span class="filter-notice-label">Vue rapide</span>
+                <strong>{{ active_filter_label }}</strong>
+                <a href="{% url 'documents:list' %}" class="btn btn-sm btn-outline-secondary">Afficher tout</a>
+            </div>
+        {% endif %}
+
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-lg-4">
+                <input type="text" class="form-control" name="q" value="{{ search_term }}" placeholder="Titre, service ou auteur">
+            </div>
+            <div class="col-lg-3">
+                <select name="type" class="form-select">
+                    <option value="">Tous les types</option>
+                    {% for value, label in type_choices %}
+                        <option value="{{ value }}" {% if type_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-3">
+                <select name="statut" class="form-select">
+                    <option value="">Tous les statuts</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2 d-grid">
+                <button type="submit" class="btn btn-outline-primary">Filtrer</button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table align-middle stacked-mobile-table">
+                <thead>
+                    <tr>
+                        <th>Titre</th>
+                        <th>Type</th>
+                        <th>Service</th>
+                        <th>Auteur</th>
+                        <th>Statut</th>
+                        <th>Date</th>
+                        <th>Fichier</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in documents %}
+                        <tr>
+                            <td data-label="Titre">{{ document.titre }}</td>
+                            <td data-label="Type">{{ document.get_type_document_display }}</td>
+                            <td data-label="Service">{{ document.service_concerne|default:"-" }}</td>
+                            <td data-label="Auteur">{{ document.auteur.get_full_name|default:document.auteur.username|default:"-" }}</td>
+                            <td data-label="Statut"><span class="badge text-bg-light">{{ document.get_statut_display }}</span></td>
+                            <td data-label="Date">{{ document.date_ajout|date:"d/m/Y H:i" }}</td>
+                            <td data-label="Fichier">
+                                {% if document.fichier %}
+                                    <a href="{% url 'documents:download' document.pk %}">{{ document.nom_fichier }}</a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td data-label="Action" class="text-end table-actions">
+                                <div class="action-icon-bar justify-content-end">
+                                    <a
+                                        href="{% url 'documents:edit' document.pk %}"
+                                        class="action-icon-button action-icon-button-primary"
+                                        aria-label="Modifier le document {{ document.titre }}"
+                                        title="Modifier"
+                                    >
+                                        {% include "includes/action_icon.html" with icon="edit" %}
+                                    </a>
+                                    {% if can_delete %}
+                                        <form
+                                            method="post"
+                                            action="{% url 'documents:delete' document.pk %}"
+                                            class="action-icon-form"
+                                            data-confirm-form="Confirmer la suppression de ce document ?"
+                                            data-confirm-title="Supprimer le document"
+                                            data-confirm-accept="Supprimer"
+                                            data-confirm-tone="danger"
+                                        >
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button
+                                                type="submit"
+                                                class="action-icon-button action-icon-button-danger"
+                                                aria-label="Supprimer le document {{ document.titre }}"
+                                                title="Supprimer"
+                                            >
+                                                {% include "includes/action_icon.html" with icon="delete" %}
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-muted">Aucun document trouvé.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

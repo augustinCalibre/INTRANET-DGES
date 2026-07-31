@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}{{ diplome.nom_beneficiaire }} | Intranet DGES{% endblock %}
+{% block page_title %}Fiche diplôme{% endblock %}
+
+{% block content %}
+    <div class="row g-4">
+        <div class="col-xl-8">
+            <div class="panel-card">
+                <div class="diploma-lot-head-top mb-3">
+                    <div>
+                        <span class="diploma-lot-kicker">Bénéficiaire</span>
+                        <h3 class="diploma-lot-title">{{ diplome.nom_beneficiaire }}</h3>
+                        <p class="diploma-lot-meta mb-0">Diplôme n° {{ diplome.numero_diplome }}</p>
+                    </div>
+                    <div class="diploma-lot-head-actions">
+                        <span class="{{ diplome.status_badge_class }} diploma-status-large">{{ diplome.get_statut_display }}</span>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{% url 'diplomas:lot_detail' lot.pk %}" class="btn btn-outline-secondary btn-sm">Retour au lot</a>
+                            {% if can_manage and lot.allows_diploma_edition %}
+                                <a href="{% url 'diplomas:diploma_edit' diplome.pk %}" class="btn btn-outline-primary btn-sm">Modifier</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if diplome.anomalie %}
+                    <div class="list-note danger mb-3">
+                        <strong>Anomalie : {{ diplome.get_anomalie_display }}</strong>
+                        <span>{{ diplome.observations|default:"Aucune précision enregistrée."|linebreaksbr }}</span>
+                    </div>
+                {% endif %}
+
+                <dl class="diploma-definition-grid">
+                    <div>
+                        <dt>Établissement</dt>
+                        <dd>{{ diplome.etablissement_effectif|default:"-" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Filière</dt>
+                        <dd>{{ diplome.filiere|default:"-" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Année académique</dt>
+                        <dd>{{ diplome.annee_academique|default:"-" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Lot d'arrivée</dt>
+                        <dd><a href="{% url 'diplomas:lot_detail' lot.pk %}">{{ lot.reference }}</a></dd>
+                    </div>
+                    <div>
+                        <dt>Statut du lot</dt>
+                        <dd><span class="{{ lot.status_badge_class }}">{{ lot.get_statut_display }}</span></dd>
+                    </div>
+                    <div>
+                        <dt>Enregistré le</dt>
+                        <dd>{{ diplome.created_at|date:"d/m/Y à H:i" }}</dd>
+                    </div>
+                    {% if diplome.date_retrait %}
+                        <div>
+                            <dt>Retiré le</dt>
+                            <dd>{{ diplome.date_retrait|date:"d/m/Y à H:i" }}{% if diplome.retire_par %} par {{ diplome.retire_par }}{% endif %}</dd>
+                        </div>
+                    {% endif %}
+                </dl>
+
+                {% if diplome.observations and not diplome.anomalie %}
+                    <div class="list-note info">
+                        <strong>Observations</strong>
+                        <span>{{ diplome.observations|linebreaksbr }}</span>
+                    </div>
+                {% endif %}
+
+                {% if can_manage and lot.allows_withdrawal and diplome.statut != "retire" %}
+                    <div class="diploma-withdraw-card mt-4">
+                        <h5 class="h6">Enregistrer le retrait</h5>
+                        <p class="text-muted small">
+                            À utiliser lorsque le diplôme signé est remis à son bénéficiaire ou à un mandataire.
+                        </p>
+                        <form
+                            method="post"
+                            action="{% url 'diplomas:diploma_withdraw' diplome.pk %}"
+                            class="row g-2 align-items-end"
+                            data-confirm-form="Enregistrer le retrait du diplôme de {{ diplome.nom_beneficiaire }} ?"
+                            data-confirm-title="Retrait du diplôme"
+                            data-confirm-accept="Enregistrer le retrait"
+                        >
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <div class="col-md-8">
+                                <label class="form-label" for="retirePar">Retiré par</label>
+                                <input type="text" class="form-control" id="retirePar" name="retire_par" placeholder="Nom de la personne qui retire" maxlength="180">
+                            </div>
+                            <div class="col-md-4 d-grid">
+                                <button type="submit" class="btn btn-primary">Enregistrer le retrait</button>
+                            </div>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h4>Preuve de traitement</h4>
+                </div>
+                <ol class="diploma-timeline">
+                    {% for item in histories %}
+                        <li class="diploma-timeline-item">
+                            <span class="diploma-timeline-dot" aria-hidden="true"></span>
+                            <div>
+                                <strong>{{ item.action }}</strong>
+                                <span class="diploma-timeline-meta">
+                                    {% if item.utilisateur %}{{ item.utilisateur.get_full_name|default:item.utilisateur.username }} · {% endif %}
+                                    {{ item.date|date:"d/m/Y H:i" }}
+                                </span>
+                                {% if item.commentaire %}
+                                    <p class="diploma-timeline-comment mb-0">{{ item.commentaire }}</p>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% empty %}
+                        <li class="text-muted">Aucune action enregistrée.</li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+    </div>
+{% endblock %}

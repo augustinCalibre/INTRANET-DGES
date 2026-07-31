@@ -1,0 +1,384 @@
+/* ============================================================
+   Intranet DGES — visualisations du tableau de bord
+
+   Barres horizontales en HTML/CSS. Aucune bibliothèque externe : la
+   politique de sécurité du contenu servie par Nginx interdit les scripts
+   distants, et un graphique de comparaison de grandeurs n'en a pas besoin.
+
+   Couleur : une seule teinte, la rampe s'assombrit avec l'avancement dans
+   le circuit. Les deux modes sont choisis, pas déduits l'un de l'autre.
+
+   Rampes validées contre les surfaces réelles de l'application :
+
+     clair  (#ffffff) : #86b6ef #5598e7 #2a78d6 #1c5cab #104281
+                        teinte unique (3°), luminosité monotone,
+                        extrémité claire à 2,11:1
+     sombre (#111f2d) : #184f95 #256abf #3987e5 #6da7ec #9ec5f4
+                        teinte unique (3°), luminosité monotone,
+                        extrémité claire à 2,06:1
+   ============================================================ */
+
+.viz-panel {
+    --viz-step-0: #86b6ef;
+    --viz-step-1: #5598e7;
+    --viz-step-2: #2a78d6;
+    --viz-step-3: #1c5cab;
+    --viz-step-4: #104281;
+    --viz-track: #eef2f7;
+    --viz-axis: #d0dae4;
+}
+
+html[data-theme="dark"] .viz-panel {
+    --viz-step-0: #184f95;
+    --viz-step-1: #256abf;
+    --viz-step-2: #3987e5;
+    --viz-step-3: #6da7ec;
+    --viz-step-4: #9ec5f4;
+    --viz-track: #1a2c3a;
+    --viz-axis: #2b4257;
+}
+
+.viz-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1.5rem;
+}
+
+.viz-figure {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0;
+}
+
+.viz-title {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.viz-title strong {
+    color: var(--primary-deep);
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.viz-title span {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+
+/* Les barres sont des lignes cliquables : lire et filtrer au même endroit. */
+
+.viz-bars {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.viz-bar-row {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 9rem) 1fr auto;
+    align-items: center;
+    gap: 0.6rem;
+    /* La zone cliquable couvre toute la ligne, pas seulement la barre :
+       au moins 26 px de haut, bien au-dela de la barre de 10 px. */
+    min-height: 26px;
+    padding: 0.28rem 0.35rem;
+    border-radius: var(--radius-sm, 10px);
+    color: var(--text-main);
+    text-decoration: none;
+    transition: background-color 0.16s ease;
+}
+
+.viz-bar-row:hover,
+.viz-bar-row:focus-visible {
+    background: var(--surface-soft, #f7f9fc);
+    color: var(--text-main);
+    text-decoration: none;
+}
+
+.viz-bar-label {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* Piste et remplissage. L'extrémité des données est arrondie, l'origine
+   reste plaquée sur la ligne de base : la longueur se lit sans ambiguïté. */
+
+.viz-bar-track {
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--viz-track);
+    border-left: 1px solid var(--viz-axis);
+}
+
+.viz-bar-fill {
+    height: 100%;
+    min-width: 3px;
+    border-radius: 0 4px 4px 0;
+    background: var(--viz-step-2);
+    transition: width 0.3s ease;
+}
+
+.viz-bar-fill.step-0 { background: var(--viz-step-0); }
+.viz-bar-fill.step-1 { background: var(--viz-step-1); }
+.viz-bar-fill.step-2 { background: var(--viz-step-2); }
+.viz-bar-fill.step-3 { background: var(--viz-step-3); }
+.viz-bar-fill.step-4 { background: var(--viz-step-4); }
+
+/* Valeur toujours affichée : l'identité ne repose jamais sur la couleur
+   seule, et la lecture ne dépend pas d'une infobulle. */
+
+.viz-bar-value {
+    min-width: 3.4rem;
+    text-align: right;
+    color: var(--text-main);
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.viz-bar-value small {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+}
+
+.viz-empty {
+    padding: 1rem;
+    border: 1px dashed var(--border-soft);
+    border-radius: var(--radius-md, 13px);
+    color: var(--text-muted);
+    font-size: 0.84rem;
+    text-align: center;
+}
+
+/* ---------------------------------- Files de décision */
+
+.decision-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: 1rem;
+}
+
+.decision-column {
+    display: grid;
+    align-content: start;
+    gap: 0.5rem;
+    padding: 1rem;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md, 13px);
+    background: var(--surface-soft, #f7f9fc);
+}
+
+html[data-theme="dark"] .decision-column {
+    background: var(--surface-soft);
+}
+
+.decision-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.decision-head strong {
+    color: var(--primary-deep);
+    font-size: 0.88rem;
+}
+
+/* Nombre isole : chiffres proportionnels (cf. dges-ui.css). */
+.decision-count {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--primary-deep);
+}
+
+.decision-item {
+    display: grid;
+    gap: 0.1rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm, 10px);
+    background: var(--card-bg);
+    color: var(--text-main);
+    text-decoration: none;
+    transition: border-color 0.16s ease, transform 0.16s ease;
+}
+
+.decision-item:hover,
+.decision-item:focus-visible {
+    transform: translateY(-1px);
+    border-color: var(--border-strong);
+    color: var(--text-main);
+    text-decoration: none;
+}
+
+.decision-item strong {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.decision-item span {
+    color: var(--text-muted);
+    font-size: 0.76rem;
+}
+
+.decision-none {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+/* ------------------ Saisie de la fiche d'analyse du courrier
+
+   La grille reprend la disposition du formulaire papier : le Directeur
+   Général et la secrétaire retrouvent à l'écran ce qu'ils ont sous les yeux
+   sur la feuille. */
+
+.fiche-grille-saisie {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 0.75rem;
+}
+
+.fiche-colonne {
+    margin: 0;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md, 13px);
+    background: var(--surface-soft, #f7f9fc);
+}
+
+.fiche-colonne legend {
+    float: none;
+    width: auto;
+    margin-bottom: 0.5rem;
+    padding: 0;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.fiche-instructions-saisie {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.3rem 1rem;
+}
+
+.fiche-case-saisie {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.3rem 0.2rem;
+    border-radius: var(--radius-sm, 10px);
+    font-size: 0.86rem;
+    cursor: pointer;
+}
+
+.fiche-case-saisie:hover {
+    background: var(--surface-soft-strong, #f1f5f9);
+}
+
+.fiche-case-saisie input {
+    margin-top: 0.15rem;
+    flex: 0 0 auto;
+}
+
+/* ---------------------------------- Rangée de filtres
+
+   Une seule rangée, au-dessus de tout ce qu'elle cadre. Un filtre placé
+   dans l'en-tête d'un graphique laisse croire qu'il ne concerne que lui. */
+
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md, 13px);
+    background: var(--card-bg);
+}
+
+.filter-row-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.filter-row-note {
+    flex: 1 1 14rem;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+}
+
+/* ---------------------------------- Sélecteur de période */
+
+.period-switch {
+    display: inline-flex;
+    padding: 0.2rem;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-pill, 999px);
+    background: var(--card-bg);
+    gap: 0.15rem;
+}
+
+.period-switch a {
+    padding: 0.32rem 0.8rem;
+    border-radius: var(--radius-pill, 999px);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.period-switch a:hover {
+    color: var(--text-main);
+    text-decoration: none;
+}
+
+.period-switch a.is-active {
+    background: var(--primary);
+    color: #ffffff;
+}
+
+html[data-theme="dark"] .period-switch a.is-active {
+    color: #06131f;
+}
+
+/* Barre de magnitude glissée dans un tableau : même encodage, même teinte. */
+
+.viz-inline-track {
+    height: 6px;
+    min-width: 3rem;
+    margin-top: 0.3rem;
+    border-radius: 999px;
+    background: var(--viz-track);
+}
+
+.viz-inline-fill {
+    height: 100%;
+    border-radius: 0 3px 3px 0;
+    background: var(--viz-step-2);
+}
+
+@media (max-width: 575.98px) {
+    .viz-bar-row {
+        grid-template-columns: 1fr auto;
+        row-gap: 0.3rem;
+    }
+
+    .viz-bar-track {
+        grid-column: 1 / -1;
+        order: 3;
+    }
+}

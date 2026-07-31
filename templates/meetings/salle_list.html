@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Salles | Intranet DGES{% endblock %}
+{% block page_title %}Salles de réunion{% endblock %}
+
+{% block content %}
+    <div class="panel-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">Occupation des salles</h3>
+                <p class="text-muted mb-0">
+                    État à l'instant présent. Une salle réservée ne peut pas être retenue deux fois
+                    sur le même créneau : la programmation est refusée en nommant la réunion en place.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 page-actions">
+                <a href="{% url 'meetings:list' %}" class="btn btn-outline-secondary">Retour aux réunions</a>
+                {% if can_manage_salles %}
+                    <a href="{% url 'meetings:salle_create' %}" class="btn btn-primary">Créer une salle</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="diploma-metric-grid mb-4">
+            <div class="diploma-metric">
+                <span>Salles</span>
+                <strong>{{ total_salles }}</strong>
+            </div>
+            <div class="diploma-metric {% if total_occupees %}is-warning{% endif %}">
+                <span>Occupées</span>
+                <strong>{{ total_occupees }}</strong>
+                <small>à {{ current_time|date:"H:i" }}</small>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table align-middle stacked-mobile-table">
+                <thead>
+                    <tr>
+                        <th>Salle</th>
+                        <th>Localisation</th>
+                        <th>Capacité</th>
+                        <th>État</th>
+                        <th>Prochaine réservation</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in occupations %}
+                        <tr>
+                            <td data-label="Salle">
+                                <strong>{{ item.salle.nom }}</strong>
+                                {% if not item.salle.actif %}
+                                    <small class="d-block text-muted">Indisponible</small>
+                                {% endif %}
+                                {% if item.salle.equipements %}
+                                    <small class="d-block text-muted">{{ item.salle.equipements }}</small>
+                                {% endif %}
+                            </td>
+                            <td data-label="Localisation">{{ item.salle.localisation|default:"-" }}</td>
+                            <td data-label="Capacité">{% if item.salle.capacite %}{{ item.salle.capacite }}{% else %}-{% endif %}</td>
+                            <td data-label="État">
+                                {% if item.occupee %}
+                                    <span class="badge diploma-status-anomaly">Occupée</span>
+                                    <small class="d-block text-muted">
+                                        {{ item.reunion_en_cours.titre|truncatechars:38 }} —
+                                        jusqu'à {{ item.reunion_en_cours.date_fin|date:"H:i" }}
+                                    </small>
+                                {% elif item.salle.actif %}
+                                    <span class="badge diploma-status-compliant">Libre</span>
+                                {% else %}
+                                    <span class="badge diploma-status-archived">Hors service</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Prochaine réservation">
+                                {% if item.prochaine_reunion %}
+                                    {{ item.prochaine_reunion.date_heure|date:"d/m/Y H:i" }}
+                                    <small class="d-block text-muted">
+                                        {{ item.prochaine_reunion.titre|truncatechars:38 }}
+                                        ({{ item.prochaine_reunion.duree_label }})
+                                    </small>
+                                {% else %}
+                                    <span class="text-muted">Aucune</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Action" class="text-end table-actions">
+                                <div class="action-icon-bar justify-content-end">
+                                    {% if can_manage_salles %}
+                                        <a
+                                            href="{% url 'meetings:salle_edit' item.salle.pk %}"
+                                            class="action-icon-button action-icon-button-primary"
+                                            aria-label="Modifier la salle {{ item.salle.nom }}"
+                                            title="Modifier"
+                                        >
+                                            {% include "includes/action_icon.html" with icon="edit" %}
+                                        </a>
+                                    {% endif %}
+                                    {% if can_delete %}
+                                        <form
+                                            method="post"
+                                            action="{% url 'meetings:salle_delete' item.salle.pk %}"
+                                            class="action-icon-form"
+                                            data-confirm-form="Supprimer la salle {{ item.salle.nom }} ?"
+                                            data-confirm-title="Supprimer la salle"
+                                            data-confirm-accept="Supprimer"
+                                            data-confirm-tone="danger"
+                                        >
+                                            {% csrf_token %}
+                                            <button
+                                                type="submit"
+                                                class="action-icon-button action-icon-button-danger"
+                                                aria-label="Supprimer la salle {{ item.salle.nom }}"
+                                                title="Supprimer"
+                                            >
+                                                {% include "includes/action_icon.html" with icon="delete" %}
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6">
+                                <div class="diploma-empty">
+                                    <strong>Aucune salle enregistrée</strong>
+                                    <span>Créez les salles de la direction pour pouvoir les réserver.</span>
+                                    {% if can_manage_salles %}
+                                        <a href="{% url 'meetings:salle_create' %}" class="btn btn-primary btn-sm">Créer une salle</a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

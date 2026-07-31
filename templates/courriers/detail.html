@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}{{ courrier.reference }} | Intranet DGES{% endblock %}
+{% block page_title %}{{ courrier.reference }}{% endblock %}
+
+{% block content %}
+    <div class="panel-card diploma-lot-head mb-4">
+        <div class="diploma-lot-head-top">
+            <div>
+                <span class="diploma-lot-kicker">Courrier {{ courrier.get_sens_display|lower }}</span>
+                <h3 class="diploma-lot-title">{{ courrier.objet }}</h3>
+                <p class="diploma-lot-meta mb-0">
+                    De {{ courrier.expediteur }}
+                    · reçu le {{ courrier.date_reception|date:"d/m/Y" }}
+                    {% if courrier.receptionne_par %}
+                        par {{ courrier.receptionne_par.get_full_name|default:courrier.receptionne_par.username }}
+                    {% endif %}
+                    {% if courrier.destinataire_service %} · {{ courrier.destinataire_service.nom }}{% endif %}
+                </p>
+            </div>
+            <div class="diploma-lot-head-actions">
+                <span class="{{ courrier.status_badge_class }} diploma-status-large">{{ courrier.get_statut_display }}</span>
+                {% if courrier.is_urgent %}<span class="diploma-flag">Urgent</span>{% endif %}
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'courriers:list' %}" class="btn btn-outline-secondary btn-sm">Retour au registre</a>
+                    <a href="{% url 'courriers:fiche_print' courrier.pk %}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">Imprimer la fiche d'analyse</a>
+                    {% if can_record_fiche %}
+                        <a href="{% url 'courriers:fiche' courrier.pk %}" class="btn btn-primary btn-sm">Renseigner la fiche</a>
+                    {% endif %}
+                    {% if courrier.fichier %}
+                        <a href="{% url 'courriers:download' courrier.pk %}" class="btn btn-outline-primary btn-sm">Télécharger la pièce</a>
+                    {% endif %}
+                    {% if can_manage and can_edit_sheet %}
+                        <a href="{% url 'courriers:edit' courrier.pk %}" class="btn btn-outline-primary btn-sm">Modifier la fiche</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <ol class="diploma-stepper" aria-label="Étapes du circuit du courrier">
+            {% for step in steps %}
+                <li class="diploma-step {% if step.is_done %}is-done{% endif %} {% if step.is_current %}is-current{% endif %}">
+                    <span class="diploma-step-dot" aria-hidden="true">{% if step.is_done %}&check;{% else %}{{ step.index }}{% endif %}</span>
+                    <span class="diploma-step-label">{{ step.label }}</span>
+                </li>
+            {% endfor %}
+        </ol>
+
+        <div class="diploma-metric-grid">
+            <div class="diploma-metric">
+                <span>Priorité</span>
+                <strong>{{ courrier.get_priorite_display }}</strong>
+            </div>
+            <div class="diploma-metric {% if courrier.jours_depuis_reception > 7 and not courrier.is_closed %}is-warning{% endif %}">
+                <span>Depuis réception</span>
+                <strong>{{ courrier.jours_depuis_reception }}</strong>
+                <small>jour{{ courrier.jours_depuis_reception|pluralize }}</small>
+            </div>
+            {% if courrier.date_transmission_dg %}
+                <div class="diploma-metric">
+                    <span>Transmis au DG</span>
+                    <strong>{{ courrier.date_transmission_dg|date:"d/m/Y" }}</strong>
+                    <small>{{ courrier.date_transmission_dg|date:"H:i" }}{% if courrier.transmis_par %} · {{ courrier.transmis_par.get_full_name|default:courrier.transmis_par.username }}{% endif %}</small>
+                </div>
+            {% endif %}
+            {% if courrier.date_visa %}
+                <div class="diploma-metric is-success">
+                    <span>Visé</span>
+                    <strong>{{ courrier.date_visa|date:"d/m/Y" }}</strong>
+                    <small>{{ courrier.date_visa|date:"H:i" }}{% if courrier.vise_par %} · {{ courrier.vise_par.get_full_name|default:courrier.vise_par.username }}{% endif %}</small>
+                </div>
+            {% endif %}
+            {% if courrier.date_classement %}
+                <div class="diploma-metric">
+                    <span>Classé</span>
+                    <strong>{{ courrier.date_classement|date:"d/m/Y" }}</strong>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if courrier.a_des_imputations or courrier.instructions.exists %}
+            <div class="list-note mt-3">
+                <strong>Fiche d'analyse</strong>
+                <span>
+                    {% if courrier.a_des_imputations %}
+                        <strong>Imputations :</strong>
+                        {% for libelle in courrier.libelles_imputations %}{{ libelle }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+                    {% endif %}
+                    {% if courrier.instructions.exists %}
+                        <strong>Instructions :</strong>
+                        {% for item in courrier.instructions.all %}{{ item.libelle }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+                    {% endif %}
+                    {% if courrier.autres_instructions %}{{ courrier.autres_instructions }}{% endif %}
+                </span>
+                {% if courrier.date_fiche %}
+                    <span class="small">
+                        Renseignée le {{ courrier.date_fiche|date:"d/m/Y à H:i" }}
+                        {% if courrier.fiche_saisie_par %}par {{ courrier.fiche_saisie_par.get_full_name|default:courrier.fiche_saisie_par.username }}{% endif %}
+                        {% if courrier.fiche_pour_le_compte_du_dg %} — reportée pour le compte du Directeur Général{% endif %}
+                    </span>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% if courrier.instruction_dg %}
+            <div class="list-note info mt-3">
+                <strong>Observations du Directeur Général</strong>
+                <span>{{ courrier.instruction_dg|linebreaksbr }}</span>
+            </div>
+        {% endif %}
+
+        {% if courrier.observation %}
+            <div class="list-note mt-3">
+                <strong>Observation</strong>
+                <span>{{ courrier.observation|linebreaksbr }}</span>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if taches %}
+        <div class="panel-card mb-4">
+            <div class="panel-header">
+                <h4>Suite donnée</h4>
+                {% if suite_donnee %}
+                    <span class="badge diploma-status-compliant">Toutes les tâches sont closes</span>
+                {% else %}
+                    <span class="badge diploma-status-checking">{{ taches_ouvertes }} tâche{{ taches_ouvertes|pluralize }} en cours</span>
+                {% endif %}
+            </div>
+            <p class="text-muted small">
+                L'agent imputé ne traite pas le courrier lui-même : il fait avancer sa tâche,
+                et cet avancement remonte ci-dessous ainsi que dans la traçabilité.
+            </p>
+            <div class="table-responsive">
+                <table class="table align-middle stacked-mobile-table">
+                    <thead>
+                        <tr>
+                            <th>Tâche</th>
+                            <th>Confiée à</th>
+                            <th>Priorité</th>
+                            <th>Statut</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tache in taches %}
+                            <tr>
+                                <td data-label="Tâche">{{ tache.titre|truncatechars:60 }}</td>
+                                <td data-label="Confiée à">
+                                    {% if tache.assigne_a %}
+                                        {{ tache.assigne_a.get_full_name|default:tache.assigne_a.username }}
+                                    {% elif tache.service_concerne %}
+                                        {{ tache.service_concerne.nom }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Priorité">
+                                    {% if tache.priorite == "urgente" %}
+                                        <span class="badge diploma-status-anomaly">Urgente</span>
+                                    {% else %}
+                                        <span class="badge text-bg-light">{{ tache.get_priorite_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Statut">
+                                    <span class="badge {% if tache.is_closed %}diploma-status-compliant{% else %}diploma-status-checking{% endif %}">
+                                        {{ tache.display_status_label }}
+                                    </span>
+                                </td>
+                                <td data-label="Action" class="text-end table-actions">
+                                    <a href="{% url 'tasks:edit' tache.pk %}" class="btn btn-sm btn-outline-primary">Ouvrir la tâche</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-xl-7">
+            {% if transitions %}
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <h4>Actions disponibles</h4>
+                    </div>
+                    <div class="diploma-action-grid">
+                        {% for transition in transitions %}
+                            <div class="diploma-transition-card tone-{{ transition.tone }}">
+                                <div class="diploma-transition-head">
+                                    <span class="diploma-transition-icon" aria-hidden="true">
+                                        {% include "includes/action_icon.html" with icon=transition.icon %}
+                                    </span>
+                                    <strong>{{ transition.label }}</strong>
+                                </div>
+                                <p class="diploma-transition-help">{{ transition.help }}</p>
+                                <form
+                                    method="post"
+                                    action="{% url 'courriers:status' courrier.pk transition.target %}"
+                                    data-confirm-form="{{ transition.confirm }}"
+                                    data-confirm-title="{{ transition.label }}"
+                                    data-confirm-accept="Confirmer"
+                                    {% if transition.tone == "danger" %}data-confirm-tone="danger"{% endif %}
+                                >
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    {% if transition.require_comment %}
+                                        <label class="form-label" for="motif{{ forloop.counter }}">Motif (obligatoire)</label>
+                                        <textarea
+                                            class="form-control mb-2"
+                                            id="motif{{ forloop.counter }}"
+                                            name="commentaire"
+                                            rows="2"
+                                            required
+                                            placeholder="Précisez la raison de ce retour"
+                                        ></textarea>
+                                    {% elif transition.target == "vise_dg" %}
+                                        <label class="form-label" for="instruction{{ forloop.counter }}">Instruction (facultative)</label>
+                                        <textarea
+                                            class="form-control mb-2"
+                                            id="instruction{{ forloop.counter }}"
+                                            name="instruction"
+                                            rows="2"
+                                            placeholder="Suite à donner, service à saisir, délai…"
+                                        ></textarea>
+                                    {% endif %}
+                                    <button type="submit" class="btn btn-sm {% if transition.tone == 'danger' %}btn-outline-secondary{% else %}btn-primary{% endif %}">
+                                        {{ transition.label }}
+                                    </button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <h4>Actions disponibles</h4>
+                    </div>
+                    <p class="text-muted mb-0">
+                        {% if courrier.is_closed %}
+                            Ce courrier est classé : le circuit est terminé.
+                        {% else %}
+                            Aucune action ne vous revient à cette étape du circuit.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-xl-5">
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h4>Traçabilité</h4>
+                </div>
+                <ol class="diploma-timeline">
+                    {% for item in histories %}
+                        <li class="diploma-timeline-item">
+                            <span class="diploma-timeline-dot" aria-hidden="true"></span>
+                            <div>
+                                <strong>{{ item.action }}</strong>
+                                <span class="diploma-timeline-meta">
+                                    {% if item.utilisateur %}{{ item.utilisateur.get_full_name|default:item.utilisateur.username }} · {% endif %}
+                                    {{ item.date|date:"d/m/Y H:i" }}
+                                </span>
+                                {% if item.commentaire %}
+                                    <p class="diploma-timeline-comment mb-0">{{ item.commentaire }}</p>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% empty %}
+                        <li class="text-muted">Aucun mouvement enregistré.</li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+    </div>
+{% endblock %}

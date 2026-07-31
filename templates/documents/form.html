@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | Intranet DGES{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="panel-card form-card">
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="row g-3">
+                {% for field in form %}
+                    <div class="{% if field.name == 'fichier' %}col-12{% else %}col-md-6{% endif %}">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {% if field.name == "fichier" %}
+                            <div class="file-upload-field">
+                                {% if document and document.fichier %}
+                                    <div class="file-upload-current">
+                                        <span class="file-upload-current-label">Fichier actuel</span>
+                                        <a href="{% url 'documents:download' document.pk %}" class="file-upload-current-link">{{ document.nom_fichier }}</a>
+                                        <span class="file-upload-current-meta">Laissez le champ vide si vous souhaitez conserver ce fichier.</span>
+                                    </div>
+                                {% endif %}
+                                <div class="file-upload-input-wrap">
+                                    <span class="file-upload-input-label">{% if is_creation %}Ajouter le fichier{% else %}Remplacer le fichier{% endif %}</span>
+                                    {{ field }}
+                                </div>
+                            </div>
+                        {% else %}
+                            {{ field }}
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-4 form-actions">
+                <a href="{{ return_url|default_if_none:''|default:request.path }}" class="btn btn-outline-secondary">{{ return_label|default:"Retour a la liste" }}</a>
+                <button type="submit" class="btn btn-primary">{% if is_creation %}Ajouter le document{% else %}Enregistrer{% endif %}</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

@@ -1,0 +1,166 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: intranet-dges-db
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - intranet_dges_network
+
+  nextcloud-db:
+    image: postgres:16-alpine
+    container_name: intranet-dges-nextcloud-db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${NEXTCLOUD_POSTGRES_DB}
+      POSTGRES_USER: ${NEXTCLOUD_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${NEXTCLOUD_POSTGRES_PASSWORD}
+    volumes:
+      - nextcloud_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - intranet_dges_network
+
+  nextcloud-redis:
+    image: redis:7-alpine
+    container_name: intranet-dges-nextcloud-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - nextcloud_redis_data:/data
+    networks:
+      - intranet_dges_network
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intranet-dges-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+    expose:
+      - "8000"
+    networks:
+      - intranet_dges_network
+
+  nextcloud-app:
+    image: ${NEXTCLOUD_IMAGE}
+    container_name: intranet-dges-nextcloud-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: nextcloud-db
+      POSTGRES_DB: ${NEXTCLOUD_POSTGRES_DB}
+      POSTGRES_USER: ${NEXTCLOUD_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${NEXTCLOUD_POSTGRES_PASSWORD}
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAINS}
+      REDIS_HOST: nextcloud-redis
+      PHP_MEMORY_LIMIT: ${NEXTCLOUD_PHP_MEMORY_LIMIT}
+      PHP_UPLOAD_LIMIT: ${NEXTCLOUD_PHP_UPLOAD_LIMIT}
+      APACHE_BODY_LIMIT: ${NEXTCLOUD_APACHE_BODY_LIMIT}
+      APACHE_DISABLE_REWRITE_IP: "1"
+    depends_on:
+      nextcloud-db:
+        condition: service_healthy
+      nextcloud-redis:
+        condition: service_started
+    volumes:
+      - nextcloud_html:/var/www/html
+      - nextcloud_custom_apps:/var/www/html/custom_apps
+      - nextcloud_config:/var/www/html/config
+      - nextcloud_data:/var/www/html/data
+      - ./docker/nextcloud/proxy.config.php:/var/www/html/config/proxy.config.php:ro
+    expose:
+      - "80"
+    networks:
+      - intranet_dges_network
+
+  nextcloud-cron:
+    image: ${NEXTCLOUD_IMAGE}
+    container_name: intranet-dges-nextcloud-cron
+    restart: unless-stopped
+    entrypoint: /cron.sh
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: nextcloud-db
+      POSTGRES_DB: ${NEXTCLOUD_POSTGRES_DB}
+      POSTGRES_USER: ${NEXTCLOUD_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${NEXTCLOUD_POSTGRES_PASSWORD}
+      REDIS_HOST: nextcloud-redis
+    depends_on:
+      nextcloud-db:
+        condition: service_healthy
+      nextcloud-redis:
+        condition: service_started
+      nextcloud-app:
+        condition: service_started
+    volumes:
+      - nextcloud_html:/var/www/html
+      - nextcloud_custom_apps:/var/www/html/custom_apps
+      - nextcloud_config:/var/www/html/config
+      - nextcloud_data:/var/www/html/data
+      - ./docker/nextcloud/proxy.config.php:/var/www/html/config/proxy.config.php:ro
+    networks:
+      - intranet_dges_network
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: intranet-dges-nginx
+    restart: unless-stopped
+    depends_on:
+      - web
+      - nextcloud-app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8443:8443"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+      - static_data:/var/www/static
+      - media_data:/var/www/media
+    networks:
+      - intranet_dges_network
+
+volumes:
+  postgres_data:
+  static_data:
+  media_data:
+  nextcloud_postgres_data:
+  nextcloud_redis_data:
+  nextcloud_html:
+  nextcloud_custom_apps:
+  nextcloud_config:
+  nextcloud_data:
+
+networks:
+  intranet_dges_network:
+    driver: bridge

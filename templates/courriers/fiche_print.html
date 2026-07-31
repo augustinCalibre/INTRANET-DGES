@@ -1,0 +1,131 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fiche d'analyse — {{ courrier.reference }}</title>
+    <link rel="stylesheet" href="{% static 'css/fiche-print.css' %}?v={{ asset_version }}">
+</head>
+<body>
+    <div class="fiche-actions">
+        <a href="{% url 'courriers:detail' courrier.pk %}">Retour à la fiche du courrier</a>
+        <button type="button" onclick="window.print()">Imprimer</button>
+    </div>
+
+    <div class="fiche">
+        <header class="fiche-entete">
+            <div class="fiche-entete-col">
+                <strong>MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR</strong>
+                <strong>ET DE LA RECHERCHE SCIENTIFIQUE</strong>
+                <span class="fiche-points">……………………………</span>
+                <strong>DIRECTION GÉNÉRALE DE L'ENSEIGNEMENT SUPÉRIEUR</strong>
+                <span class="fiche-points">……………………………</span>
+            </div>
+            <div class="fiche-entete-col fiche-entete-droite">
+                <strong>RÉPUBLIQUE DE CÔTE D'IVOIRE</strong>
+                <span>Union-Discipline-Travail</span>
+            </div>
+        </header>
+
+        <h1 class="fiche-titre">FICHE D'ANALYSE DU COURRIER</h1>
+
+        <dl class="fiche-champs">
+            <div>
+                <dt>SUIVI DU COURRIER N°</dt>
+                <dd>{{ courrier.reference }}</dd>
+                <dt class="fiche-du">DU</dt>
+                <dd>{{ courrier.date_reception|date:"d/m/Y" }}</dd>
+            </div>
+            <div>
+                <dt>COURRIER ARRIVÉE N°</dt>
+                <dd>{{ courrier.numero_arrivee|default:"" }}</dd>
+                <dt class="fiche-du">DU</dt>
+                <dd>{% if courrier.date_courrier %}{{ courrier.date_courrier|date:"d/m/Y" }}{% endif %}</dd>
+            </div>
+            <div class="fiche-champ-large">
+                <dt>PROVENANCE</dt>
+                <dd>{{ courrier.expediteur }}</dd>
+            </div>
+            <div class="fiche-champ-large">
+                <dt class="fiche-souligne">OBJET</dt>
+                <dd>{{ courrier.objet }}</dd>
+            </div>
+        </dl>
+
+        {% if courrier.observation %}
+            <p class="fiche-observation">{{ courrier.observation }}</p>
+        {% else %}
+            <div class="fiche-lignes-vides" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+        {% endif %}
+
+        <h2 class="fiche-section">IMPUTATIONS</h2>
+        <table class="fiche-grille">
+            <tbody>
+                <tr>
+                    {% for colonne in grille_imputations %}
+                        <td>
+                            <div class="fiche-case fiche-colonne-titre">
+                                <span class="fiche-coche {% if colonne.service_cochee %}est-cochee{% endif %}" aria-hidden="true"></span>
+                                <span>{{ colonne.service.nom }}</span>
+                            </div>
+                            {% for agent in colonne.agents %}
+                                <div class="fiche-case">
+                                    <span class="fiche-coche {% if agent.cochee %}est-cochee{% endif %}" aria-hidden="true"></span>
+                                    <span>{{ agent.nom }}</span>
+                                </div>
+                            {% endfor %}
+                        </td>
+                    {% empty %}
+                        <td>Aucun service enregistré.</td>
+                    {% endfor %}
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 class="fiche-section">INSTRUCTIONS</h2>
+        <div class="fiche-instructions">
+            {% for instruction in instructions %}
+                <div class="fiche-case">
+                    <span class="fiche-coche {% if instruction.cochee %}est-cochee{% endif %}" aria-hidden="true"></span>
+                    <span>{{ instruction.objet.libelle }}</span>
+                </div>
+            {% endfor %}
+        </div>
+
+        <h2 class="fiche-section fiche-section-inline">AUTRES :</h2>
+        <div class="fiche-autres">
+            {% if courrier.autres_instructions %}
+                {{ courrier.autres_instructions|linebreaksbr }}
+            {% else %}
+                <span class="fiche-points-longs">………………………………………………………………………………………………………………………………………………</span>
+                <span class="fiche-points-longs">………………………………………………………………………………………………………………………………………………</span>
+            {% endif %}
+        </div>
+
+        {% if courrier.instruction_dg %}
+            <div class="fiche-observations-dg">
+                <h2 class="fiche-section">OBSERVATIONS DU DIRECTEUR GÉNÉRAL</h2>
+                <p>{{ courrier.instruction_dg|linebreaksbr }}</p>
+            </div>
+        {% endif %}
+
+        <footer class="fiche-pied">
+            {% if courrier.date_fiche %}
+                Fiche renseignée le {{ courrier.date_fiche|date:"d/m/Y à H:i" }}
+                {% if courrier.fiche_saisie_par %}
+                    par {{ courrier.fiche_saisie_par.get_full_name|default:courrier.fiche_saisie_par.username }}
+                {% endif %}
+                {% if courrier.fiche_pour_le_compte_du_dg %}
+                    — reportée pour le compte du Directeur Général
+                {% endif %}
+            {% else %}
+                Fiche éditée le {% now "d/m/Y à H:i" %} — rubriques Imputations, Instructions
+                et Autres à renseigner par le Directeur Général.
+            {% endif %}
+        </footer>
+    </div>
+</body>
+</html>

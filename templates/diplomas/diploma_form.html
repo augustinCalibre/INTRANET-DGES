@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | Intranet DGES{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="row g-4">
+        <div class="{% if histories %}col-xl-8{% else %}col-12{% endif %}">
+            <div class="panel-card form-card">
+                <div class="panel-header">
+                    <h4>{% if is_creation %}Nouveau diplôme{% else %}Fiche du diplôme{% endif %}</h4>
+                </div>
+                <p class="text-muted">
+                    Lot <strong>{{ lot.reference }}</strong> · {{ lot.etablissement }}
+                    {% if lot.nombre_annonce %}
+                        · {{ lot.nombre_enregistre }} diplôme(s) sur {{ lot.nombre_annonce }} annoncé(s)
+                    {% endif %}
+                </p>
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="row g-3">
+                        {% for field in form %}
+                            <div class="{% if field.name == 'observations' %}col-12{% else %}col-md-6{% endif %}">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4 form-actions">
+                        <a href="{% url 'diplomas:lot_detail' lot.pk %}" class="btn btn-outline-secondary">Retour au lot</a>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% if is_creation %}
+                                <button type="submit" name="save_and_add" class="btn btn-outline-primary">
+                                    Enregistrer et ajouter le suivant
+                                </button>
+                            {% endif %}
+                            <button type="submit" class="btn btn-primary">
+                                {% if is_creation %}Enregistrer{% else %}Enregistrer les modifications{% endif %}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if histories %}
+            <div class="col-xl-4">
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <h4>Historique du diplôme</h4>
+                    </div>
+                    <ol class="diploma-timeline">
+                        {% for item in histories %}
+                            <li class="diploma-timeline-item">
+                                <span class="diploma-timeline-dot" aria-hidden="true"></span>
+                                <div>
+                                    <strong>{{ item.action }}</strong>
+                                    <span class="diploma-timeline-meta">
+                                        {% if item.utilisateur %}{{ item.utilisateur.get_full_name|default:item.utilisateur.username }} · {% endif %}
+                                        {{ item.date|date:"d/m/Y H:i" }}
+                                    </span>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ol>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

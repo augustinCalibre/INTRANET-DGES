@@ -1,0 +1,741 @@
+/* ============================================================
+   Intranet DGES — module Lots de diplomes et pagination partagee
+
+   Cette feuille prolonge app.css. Le theme clair ne definit qu'un
+   socle de variables : toute variable propre au theme sombre est
+   donc utilisee avec une valeur de repli explicite.
+   ============================================================ */
+
+/* ------------------------------------------------ Pagination partagee */
+
+.pagination-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-soft);
+}
+
+.pagination-status {
+    display: grid;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.pagination-status span {
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.pagination-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.pagination-controls .disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+/* ------------------------------------------- Bandeau de statuts */
+
+.diploma-status-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.diploma-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    background: var(--surface-soft, #f4f7fa);
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.diploma-status-chip strong {
+    color: var(--primary-deep);
+    font-size: 0.95rem;
+}
+
+.diploma-status-chip:hover,
+.diploma-status-chip:focus-visible {
+    border-color: var(--primary);
+    color: var(--text-main);
+    transform: translateY(-1px);
+}
+
+.diploma-status-chip.is-active {
+    border-color: var(--primary);
+    background: rgba(27, 95, 142, 0.09);
+    color: var(--primary-deep);
+}
+
+.diploma-status-chip.diploma-chip-anomaly strong {
+    color: #b4453c;
+}
+
+.diploma-status-chip.diploma-chip-anomaly.is-active {
+    border-color: #b4453c;
+    background: rgba(180, 69, 60, 0.1);
+}
+
+/* ------------------------------------------------------- Registre */
+
+.diploma-reference {
+    font-weight: 700;
+    color: var(--primary-deep);
+    text-decoration: none;
+    letter-spacing: 0.02em;
+}
+
+.diploma-reference:hover,
+.diploma-reference:focus-visible {
+    color: var(--primary);
+    text-decoration: underline;
+}
+
+.diploma-flag {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(27, 95, 142, 0.12);
+    color: var(--primary-deep);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    vertical-align: middle;
+}
+
+.diploma-count-cell {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 7.5rem;
+    font-weight: 600;
+}
+
+.diploma-progress {
+    height: 0.35rem;
+    border-radius: 999px;
+    background: var(--border-soft);
+    overflow: hidden;
+}
+
+.diploma-progress-bar {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--primary);
+    transition: width 0.3s ease;
+}
+
+.diploma-ecart {
+    color: #a9642a;
+    font-weight: 600;
+}
+
+.diploma-row-anomaly > td {
+    background: rgba(180, 69, 60, 0.05);
+}
+
+.diploma-empty {
+    display: grid;
+    justify-items: center;
+    gap: 0.5rem;
+    padding: 2.25rem 1rem;
+    border: 1px dashed var(--border-soft);
+    border-radius: 1rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.diploma-empty strong {
+    color: var(--primary-deep);
+    font-size: 1.02rem;
+}
+
+/* ----------------------------------------------------- Fiche lot */
+
+.diploma-lot-head-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.diploma-lot-head-actions {
+    display: grid;
+    justify-items: end;
+    gap: 0.6rem;
+}
+
+.diploma-lot-kicker {
+    display: block;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.diploma-lot-title {
+    margin: 0.25rem 0 0.35rem;
+    color: var(--primary-deep);
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+.diploma-lot-meta {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.diploma-status-large {
+    font-size: 0.86rem;
+    padding: 0.42rem 0.9rem;
+}
+
+/* Indicateur d'avancement du circuit de traitement */
+
+.diploma-stepper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.diploma-step {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex: 1 1 8.5rem;
+    min-width: 8.5rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 0.75rem;
+    background: var(--surface-soft, #f7f9fb);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.diploma-step-dot {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: 0 0 1.5rem;
+    border-radius: 50%;
+    background: var(--border-soft);
+    color: var(--text-main);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.diploma-step.is-done {
+    border-color: rgba(24, 128, 74, 0.35);
+    background: rgba(24, 128, 74, 0.08);
+    color: #14603a;
+}
+
+.diploma-step.is-done .diploma-step-dot {
+    background: #18804a;
+    color: #ffffff;
+}
+
+.diploma-step.is-current {
+    border-color: var(--primary);
+    background: rgba(27, 95, 142, 0.1);
+    color: var(--primary-deep);
+    box-shadow: 0 4px 14px rgba(27, 95, 142, 0.12);
+}
+
+.diploma-step.is-current .diploma-step-dot {
+    background: var(--primary);
+    color: #ffffff;
+}
+
+/* Compteurs */
+
+.diploma-metric-grid,
+.diploma-import-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.diploma-metric {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 0.9rem;
+    background: var(--surface-soft, #f7f9fb);
+}
+
+.diploma-metric span {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.diploma-metric strong {
+    color: var(--primary-deep);
+    font-size: 1.5rem;
+    line-height: 1.1;
+}
+
+.diploma-metric small {
+    color: var(--text-muted);
+    font-size: 0.74rem;
+}
+
+.diploma-metric.is-warning {
+    border-color: rgba(169, 100, 42, 0.4);
+    background: rgba(169, 100, 42, 0.08);
+}
+
+.diploma-metric.is-warning strong {
+    color: #8c5320;
+}
+
+.diploma-metric.is-danger {
+    border-color: rgba(180, 69, 60, 0.4);
+    background: rgba(180, 69, 60, 0.08);
+}
+
+.diploma-metric.is-danger strong {
+    color: #99392f;
+}
+
+.diploma-metric.is-success {
+    border-color: rgba(24, 128, 74, 0.4);
+    background: rgba(24, 128, 74, 0.08);
+}
+
+.diploma-metric.is-success strong {
+    color: #14603a;
+}
+
+/* ------------------------------------------ Actions du circuit */
+
+.diploma-action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 0.9rem;
+}
+
+.diploma-transition-card {
+    display: grid;
+    gap: 0.5rem;
+    align-content: start;
+    padding: 1rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 1rem;
+    background: var(--surface-soft, #f7f9fb);
+}
+
+.diploma-transition-card.tone-success {
+    border-color: rgba(24, 128, 74, 0.35);
+}
+
+.diploma-transition-card.tone-danger {
+    border-color: rgba(180, 69, 60, 0.35);
+}
+
+.diploma-transition-card.is-blocked {
+    opacity: 0.85;
+    border-style: dashed;
+}
+
+.diploma-transition-head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: var(--primary-deep);
+    font-size: 0.98rem;
+}
+
+.diploma-transition-icon {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 2rem;
+    border-radius: 0.6rem;
+    background: rgba(27, 95, 142, 0.1);
+    color: var(--primary);
+}
+
+.diploma-transition-icon .action-icon-svg {
+    width: 1.05rem;
+    height: 1.05rem;
+}
+
+.diploma-transition-help {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.84rem;
+}
+
+.diploma-transition-blocked {
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.6rem;
+    background: rgba(180, 69, 60, 0.1);
+    color: #99392f;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+/* -------------------------------------------------- Tracabilite */
+
+.diploma-timeline {
+    display: grid;
+    gap: 1rem;
+    margin: 0;
+    padding: 0 0 0 0.4rem;
+    list-style: none;
+}
+
+.diploma-timeline-item {
+    position: relative;
+    display: flex;
+    gap: 0.75rem;
+    padding-left: 0.25rem;
+}
+
+.diploma-timeline-item::before {
+    content: "";
+    position: absolute;
+    left: 0.6rem;
+    top: 1.35rem;
+    bottom: -1rem;
+    width: 1px;
+    background: var(--border-soft);
+}
+
+.diploma-timeline-item:last-child::before {
+    display: none;
+}
+
+.diploma-timeline-dot {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 0.6rem;
+    width: 0.6rem;
+    height: 0.6rem;
+    margin-top: 0.4rem;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 0 3px rgba(27, 95, 142, 0.14);
+}
+
+.diploma-timeline-item strong {
+    display: block;
+    color: var(--text-main);
+    font-size: 0.9rem;
+}
+
+.diploma-timeline-meta {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+
+.diploma-timeline-comment {
+    margin-top: 0.35rem;
+    padding: 0.45rem 0.6rem;
+    border-left: 2px solid var(--border-soft);
+    border-radius: 0 0.4rem 0.4rem 0;
+    background: var(--surface-soft, #f4f7fa);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* ------------------------------------- Fiche diplome et import */
+
+.diploma-definition-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 0.9rem;
+    margin: 0;
+}
+
+.diploma-definition-grid dt {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.diploma-definition-grid dd {
+    margin: 0.2rem 0 0;
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.diploma-withdraw-card {
+    padding: 1.1rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 1rem;
+    background: var(--surface-soft, #f7f9fb);
+}
+
+.diploma-column-list {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0 0 1rem;
+    padding: 0;
+    list-style: none;
+}
+
+.diploma-column-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px dashed var(--border-soft);
+}
+
+.diploma-column-list li:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.diploma-column-list strong {
+    color: var(--primary-deep);
+    font-size: 0.9rem;
+}
+
+.diploma-column-list span {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* ------------------------------------------ Pastilles de statut */
+
+.diploma-status-received,
+.diploma-status-checking,
+.diploma-status-compliant,
+.diploma-status-submitted,
+.diploma-status-signed,
+.diploma-status-returned,
+.diploma-status-delivered,
+.diploma-status-archived,
+.diploma-status-anomaly {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.diploma-status-received {
+    background: rgba(100, 116, 135, 0.16);
+    color: #4a5a6b;
+}
+
+.diploma-status-checking {
+    background: rgba(169, 100, 42, 0.16);
+    color: #8c5320;
+}
+
+.diploma-status-compliant {
+    background: rgba(24, 128, 74, 0.16);
+    color: #14603a;
+}
+
+.diploma-status-submitted {
+    background: rgba(27, 95, 142, 0.16);
+    color: #14476b;
+}
+
+.diploma-status-signed {
+    background: rgba(24, 128, 74, 0.22);
+    color: #0f4c2e;
+}
+
+.diploma-status-returned {
+    background: rgba(112, 76, 158, 0.16);
+    color: #543a7a;
+}
+
+.diploma-status-delivered {
+    background: rgba(20, 122, 122, 0.16);
+    color: #0e5b5b;
+}
+
+.diploma-status-archived {
+    background: rgba(100, 116, 135, 0.12);
+    color: #647487;
+}
+
+.diploma-status-anomaly {
+    background: rgba(180, 69, 60, 0.16);
+    color: #99392f;
+}
+
+/* ---------------------------------------------- Theme sombre */
+
+html[data-theme="dark"] .diploma-status-chip {
+    background: var(--surface-soft);
+}
+
+html[data-theme="dark"] .diploma-status-chip.is-active {
+    background: rgba(122, 184, 244, 0.14);
+}
+
+html[data-theme="dark"] .diploma-status-chip strong {
+    color: var(--primary-strong);
+}
+
+html[data-theme="dark"] .diploma-reference {
+    color: var(--primary-strong);
+}
+
+html[data-theme="dark"] .diploma-flag {
+    background: rgba(122, 184, 244, 0.16);
+    color: var(--primary-strong);
+}
+
+html[data-theme="dark"] .diploma-step,
+html[data-theme="dark"] .diploma-metric,
+html[data-theme="dark"] .diploma-transition-card,
+html[data-theme="dark"] .diploma-withdraw-card,
+html[data-theme="dark"] .diploma-timeline-comment {
+    background: var(--surface-soft);
+}
+
+html[data-theme="dark"] .diploma-step-dot {
+    background: var(--surface-muted);
+    color: var(--text-main);
+}
+
+html[data-theme="dark"] .diploma-step.is-done {
+    background: rgba(86, 196, 118, 0.12);
+    color: var(--accent-green-deep);
+}
+
+html[data-theme="dark"] .diploma-step.is-current {
+    background: rgba(122, 184, 244, 0.14);
+    color: var(--primary-strong);
+    box-shadow: none;
+}
+
+html[data-theme="dark"] .diploma-step.is-current .diploma-step-dot {
+    background: var(--primary);
+    color: #06111b;
+}
+
+html[data-theme="dark"] .diploma-metric strong,
+html[data-theme="dark"] .diploma-lot-title,
+html[data-theme="dark"] .diploma-transition-head,
+html[data-theme="dark"] .diploma-empty strong,
+html[data-theme="dark"] .diploma-column-list strong {
+    color: var(--primary-deep);
+}
+
+html[data-theme="dark"] .diploma-metric.is-warning strong,
+html[data-theme="dark"] .diploma-ecart {
+    color: var(--warning);
+}
+
+html[data-theme="dark"] .diploma-metric.is-danger strong,
+html[data-theme="dark"] .diploma-transition-blocked {
+    color: var(--danger);
+}
+
+html[data-theme="dark"] .diploma-metric.is-success strong {
+    color: var(--accent-green-deep);
+}
+
+html[data-theme="dark"] .diploma-transition-icon {
+    background: rgba(122, 184, 244, 0.14);
+}
+
+html[data-theme="dark"] .diploma-row-anomaly > td {
+    background: rgba(224, 123, 114, 0.08);
+}
+
+html[data-theme="dark"] .diploma-status-received {
+    background: rgba(147, 168, 184, 0.18);
+    color: #c3d3df;
+}
+
+html[data-theme="dark"] .diploma-status-checking {
+    background: rgba(239, 193, 95, 0.18);
+    color: #f0cd7f;
+}
+
+html[data-theme="dark"] .diploma-status-compliant,
+html[data-theme="dark"] .diploma-status-signed {
+    background: rgba(86, 196, 118, 0.18);
+    color: #8fdda7;
+}
+
+html[data-theme="dark"] .diploma-status-submitted {
+    background: rgba(122, 184, 244, 0.18);
+    color: #a9d1f8;
+}
+
+html[data-theme="dark"] .diploma-status-returned {
+    background: rgba(171, 141, 219, 0.18);
+    color: #c6b1e8;
+}
+
+html[data-theme="dark"] .diploma-status-delivered {
+    background: rgba(94, 197, 197, 0.18);
+    color: #9adcdc;
+}
+
+html[data-theme="dark"] .diploma-status-archived {
+    background: rgba(147, 168, 184, 0.12);
+    color: #93a8b8;
+}
+
+html[data-theme="dark"] .diploma-status-anomaly {
+    background: rgba(224, 123, 114, 0.18);
+    color: #eda49d;
+}
+
+/* -------------------------------------------------- Responsive */
+
+@media (max-width: 767.98px) {
+    .diploma-lot-head-actions {
+        justify-items: start;
+        width: 100%;
+    }
+
+    .diploma-step {
+        flex: 1 1 100%;
+    }
+
+    .pagination-bar {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .pagination-status {
+        justify-items: center;
+    }
+}

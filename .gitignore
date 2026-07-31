@@ -1,0 +1,30 @@
+# Environnements virtuels
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Données locales et fichiers produits
+db.sqlite3
+db.sqlite3-journal
+test_db.sqlite3
+media/
+staticfiles/
+logs/
+.tmp/
+
+# Secrets
+.env
+
+# Certificats et clés privées.
+# Le motif couvre tout le dossier : les anciens motifs *.crt et *.key
+# laissaient passer les copies de sauvegarde .bak, donc la clé privée.
+docker/nginx/certs/*
+!docker/nginx/certs/openssl-dges-local.cnf
+
+# Éditeurs
+.idea/
+.vscode/settings.json

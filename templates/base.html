@@ -1,0 +1,170 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    <script>
+        (function () {
+            try {
+                var storedTheme = localStorage.getItem("dges-theme");
+                var preferredDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+                var theme = storedTheme || (preferredDark ? "dark" : "light");
+                document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
+            } catch (error) {
+                document.documentElement.setAttribute("data-theme", "light");
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/flatpickr/flatpickr.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ asset_version }}">
+    <link rel="stylesheet" href="{% static 'css/diplomas.css' %}?v={{ asset_version }}">
+    <link rel="stylesheet" href="{% static 'css/dges-ui.css' %}?v={{ asset_version }}">
+    <link rel="stylesheet" href="{% static 'css/dashboard-viz.css' %}?v={{ asset_version }}">
+</head>
+<body class="bg-app">
+    {% if request.user.is_authenticated %}
+        <div class="app-shell">
+            <aside class="sidebar">
+                <div class="sidebar-head">
+                    <div class="sidebar-brand">
+                        <div class="brand-lockup">
+                            <img src="{% static 'img/logo-ministere.jpg' %}" alt="Logo du ministere de l'Enseignement superieur" class="brand-logo">
+                            <div class="brand-copy">
+                                <small class="text-uppercase">Direction Generale</small>
+                                <h1>Intranet DGES</h1>
+                                <div class="brand-hostname">{{ intranet_host }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button
+                        class="btn sidebar-toggle d-lg-none"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#sidebarNav"
+                        aria-controls="sidebarNav"
+                        aria-expanded="false"
+                        aria-label="Ouvrir le menu de navigation"
+                    >
+                        Menu
+                    </button>
+                </div>
+                <nav id="sidebarNav" class="collapse d-lg-block nav flex-column sidebar-nav">
+                    <a class="nav-link {% if request.resolver_match.namespace == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:home' %}">Tableau de bord</a>
+                    <a class="nav-link nav-link-external" href="{% url 'core:messaging' %}" target="_blank" rel="noopener noreferrer">
+                        <span>Messagerie</span>
+                        <span class="nav-link-badge">Talk</span>
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'visitors' %}active{% endif %}" href="{% url 'visitors:list' %}">Visiteurs</a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'tasks' %}active{% endif %}" href="{% url 'tasks:list' %}">Taches</a>
+                    <a class="nav-link nav-link-external {% if request.resolver_match.namespace == 'meetings' %}active{% endif %}" href="{% url 'meetings:list' %}">
+                        <span>Reunions</span>
+                        {% if unread_meeting_notifications_count %}
+                            <span class="nav-link-badge">{{ unread_meeting_notifications_count }}</span>
+                        {% endif %}
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.namespace == 'documents' and request.GET.type != 'courrier' %}active{% endif %}" href="{% url 'documents:list' %}">Documents</a>
+                    {% if can_access_courriers %}
+                        <a class="nav-link nav-link-external {% if request.resolver_match.namespace == 'courriers' %}active{% endif %}" href="{% url 'courriers:list' %}">
+                            <span>Courriers</span>
+                            {% if courriers_a_traiter_count %}
+                                <span class="nav-link-badge">{{ courriers_a_traiter_count }}</span>
+                            {% endif %}
+                        </a>
+                    {% endif %}
+                    {% if can_manage_diplomas %}
+                        <a class="nav-link nav-link-external {% if request.resolver_match.namespace == 'diplomas' %}active{% endif %}" href="{% url 'diplomas:lot_list' %}">
+                            <span>Diplômes</span>
+                            {% if lots_awaiting_signature_count %}
+                                <span class="nav-link-badge">{{ lots_awaiting_signature_count }}</span>
+                            {% endif %}
+                        </a>
+                    {% endif %}
+                    {% if can_view_accounts %}
+                        <a class="nav-link {% if request.resolver_match.namespace == 'accounts' and request.resolver_match.url_name != 'login' %}active{% endif %}" href="{% url 'accounts:access_panel' %}">Accès et comptes</a>
+                    {% endif %}
+                    {% if request.user.is_staff %}
+                        <a class="nav-link" href="{% url 'admin:index' %}">Admin Django</a>
+                    {% endif %}
+                </nav>
+            </aside>
+            <div class="main-panel">
+                <header class="topbar">
+                    <div class="topbar-intro">
+                        <div class="eyebrow">Plateforme interne</div>
+                        <h2 class="page-title">{% block page_title %}{{ app_name }}{% endblock %}</h2>
+                    </div>
+                    <div class="topbar-tools">
+                        <div class="topbar-tools-main">
+                            <a href="{% url 'meetings:list' %}" class="utility-button utility-link next-meeting-chip {% if not next_meeting %}next-meeting-chip-empty{% endif %}">
+                                <span class="next-meeting-icon">Reunion</span>
+                                <span class="next-meeting-copy">
+                                    {% if next_meeting %}
+                                        <strong>{{ next_meeting.titre|truncatechars:42 }}</strong>
+                                        <span class="small text-muted" data-countdown-target="{{ next_meeting.date_heure|date:'c' }}">{{ next_meeting_countdown }}</span>
+                                    {% else %}
+                                        <strong>Aucune reunion</strong>
+                                        <span class="small text-muted">{% if can_schedule_meeting %}Programmez la prochaine reunion{% else %}Aucune reunion validee a venir{% endif %}</span>
+                                    {% endif %}
+                                </span>
+                            </a>
+                        </div>
+                        <div class="topbar-tools-meta">
+                            <button type="button" class="utility-button theme-toggle" data-theme-toggle aria-label="Basculer le theme" aria-pressed="false">
+                                <span class="theme-toggle-track" aria-hidden="true">
+                                    <span class="theme-toggle-thumb"></span>
+                                </span>
+                                <span data-theme-label>Mode sombre</span>
+                            </button>
+                            <div class="user-panel">
+                                <div class="user-avatar">{{ request.user.get_full_name|default:request.user.username|first|upper }}</div>
+                                <div class="user-meta">
+                                    <div class="fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
+                                    <div class="small text-muted">
+                                        {{ request.user.profil.get_role_display }}
+                                        {% if request.user.profil.service %} - {{ request.user.profil.service.nom }}{% endif %}
+                                    </div>
+                                </div>
+                                <form method="post" action="{% url 'accounts:logout' %}" class="logout-form">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary logout-button">Deconnexion</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+                <main class="content-wrap">
+                    {% if messages %}
+                        <div class="mb-3">
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    {% block content %}{% endblock %}
+                </main>
+            </div>
+        </div>
+    {% else %}
+        <main class="public-shell">
+            {% if messages %}
+                <div class="container pt-4">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% block public_content %}{% endblock %}
+        </main>
+    {% endif %}
+    <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'vendor/flatpickr/flatpickr.min.js' %}"></script>
+    <script src="{% static 'vendor/flatpickr/fr.js' %}"></script>
+    <script src="{% static 'js/app.js' %}?v={{ asset_version }}"></script>
+</body>
+</html>

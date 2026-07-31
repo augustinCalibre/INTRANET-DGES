@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | Intranet DGES{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="panel-card form-card">
+        <div class="panel-header">
+            <h4>{% if is_creation %}Nouveau service{% else %}Fiche du service{% endif %}</h4>
+        </div>
+        <p class="text-muted">
+            Le service détermine ce qu'un agent voit par défaut. Les droits, eux, viennent du
+            rôle : rattacher un agent au service courrier ne lui donne aucun pouvoir
+            supplémentaire sur les courriers.
+        </p>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="row g-3">
+                {% for field in form %}
+                    <div class="{% if field.name == 'description' %}col-12{% else %}col-md-6{% endif %}">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-4 form-actions">
+                <a href="{% url 'accounts:service_list' %}" class="btn btn-outline-secondary">Retour aux services</a>
+                <button type="submit" class="btn btn-primary">
+                    {% if is_creation %}Créer le service{% else %}Enregistrer{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

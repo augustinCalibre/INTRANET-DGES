@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | Intranet DGES{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="panel-card form-card">
+        <div class="panel-header">
+            <h4>{% if is_creation %}Nouvelle salle{% else %}Fiche de la salle{% endif %}</h4>
+        </div>
+        <p class="text-muted">
+            Une salle décochée « disponible » reste visible dans l'historique mais ne peut plus
+            être réservée.
+        </p>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="row g-3">
+                {% for field in form %}
+                    <div class="{% if field.name == 'equipements' %}col-12{% else %}col-md-6{% endif %}">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-4 form-actions">
+                <a href="{% url 'meetings:salle_list' %}" class="btn btn-outline-secondary">Retour aux salles</a>
+                <button type="submit" class="btn btn-primary">
+                    {% if is_creation %}Créer la salle{% else %}Enregistrer{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

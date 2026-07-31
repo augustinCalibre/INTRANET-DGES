@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord | Intranet DGES{% endblock %}
+{% block page_title %}Tableau de bord{% endblock %}
+
+{% block content %}
+    <section class="page-intro">
+        <div>
+            <h3 class="page-intro-title">{% if is_global_dashboard %}Vue Directeur Général{% else %}Vue opérationnelle{% endif %}</h3>
+            <p class="page-intro-text">Situation du {% now "l j F Y" %}.</p>
+        </div>
+        <nav class="quick-actions" aria-label="Actions rapides">
+            {% if shows_courriers %}
+                <a href="{% url 'courriers:list' %}" class="quick-action">
+                    <span class="quick-action-label">Courriers</span>
+                    Registre du courrier
+                </a>
+            {% endif %}
+            {% if shows_diplomas %}
+                <a href="{% url 'diplomas:lot_list' %}" class="quick-action">
+                    <span class="quick-action-label">Diplômes</span>
+                    Suivre les lots
+                </a>
+            {% endif %}
+            {% if can_manage_visitors %}
+                <a href="{% url 'visitors:create' %}" class="quick-action">
+                    <span class="quick-action-label">Visiteurs</span>
+                    Enregistrer une arrivée
+                </a>
+            {% endif %}
+            <a href="{% url 'tasks:create' %}" class="quick-action">
+                <span class="quick-action-label">Tâches</span>
+                Nouvelle tâche
+            </a>
+            <a href="{% url 'meetings:create' %}" class="quick-action">
+                <span class="quick-action-label">Réunions</span>
+                Programmer
+            </a>
+        </nav>
+    </section>
+
+    {% comment %}
+        Une seule rangée de filtres, au-dessus de tout ce qu'elle cadre : les
+        chiffres de période, les répartitions et la charge par service.
+        La syntaxe {# … #} ne vaut que sur une seule ligne, d'où {% comment %} ici.
+    {% endcomment %}
+    <div class="filter-row viz-panel">
+        <span class="filter-row-label">Période d'analyse</span>
+        <nav class="period-switch" aria-label="Période d'analyse">
+            {% for cle, libelle, jours in periodes %}
+                <a
+                    href="{% url 'dashboard:home' %}?periode={{ cle }}"
+                    class="{% if periode_active == cle %}is-active{% endif %}"
+                    {% if periode_active == cle %}aria-current="page"{% endif %}
+                >{{ libelle }}</a>
+            {% endfor %}
+        </nav>
+        <span class="filter-row-note">
+            Les files de décision et les alertes montrent l'état courant, indépendamment de la période.
+        </span>
+    </div>
+
+    {# --- Chiffres de tête : ce qui attend une décision passe en premier --- #}
+    <div class="row g-3 mb-4">
+        {% if shows_courriers and peut_viser %}
+            <div class="col-md-6 col-xl-3">
+                <a href="{% url 'courriers:list' %}?statut=transmis_dg" class="stat-card stat-card-link stat-card-validation">
+                    <span class="stat-label">Courriers à viser</span>
+                    <strong>{{ stats.courriers_a_viser }}</strong>
+                    <small>{{ stats.courriers_urgents }} urgent{{ stats.courriers_urgents|pluralize }} en circuit</small>
+                </a>
+            </div>
+        {% elif shows_courriers %}
+            <div class="col-md-6 col-xl-3">
+                <a href="{% url 'courriers:list' %}?statut=transmis_secretariat" class="stat-card stat-card-link stat-card-validation">
+                    <span class="stat-label">Courriers à transmettre</span>
+                    <strong>{{ stats.courriers_a_transmettre }}</strong>
+                    <small>{{ stats.courriers_urgents }} urgent{{ stats.courriers_urgents|pluralize }} en circuit</small>
+                </a>
+            </div>
+        {% endif %}
+        {% if shows_diplomas %}
+            <div class="col-md-6 col-xl-3">
+                <a href="{% url 'diplomas:lot_list' %}?statut=transmis_dg" class="stat-card stat-card-link stat-card-documents">
+                    <span class="stat-label">Lots à signer</span>
+                    <strong>{{ stats.lots_a_signer }}</strong>
+                    <small>{{ stats.lots_total }} lot{{ stats.lots_total|pluralize }} · {{ stats.diplomas_total }} diplôme{{ stats.diplomas_total|pluralize }}</small>
+                </a>
+            </div>
+        {% endif %}
+        <div class="col-md-6 col-xl-3">
+            <a href="{% url 'tasks:list' %}?statut=traite" class="stat-card stat-card-link stat-card-tasks">
+                <span class="stat-label">Tâches à valider</span>
+                <strong>{{ stats.tasks_to_validate }}</strong>
+                <small>{{ stats.tasks_late }} en retard · {{ stats.urgent_tasks }} urgente{{ stats.urgent_tasks|pluralize }}</small>
+            </a>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <a href="{% url 'visitors:list' %}?periode=today" class="stat-card stat-card-link stat-card-visitors">
+                <span class="stat-label">Visiteurs du jour</span>
+                <strong>{{ stats.visitors_today }}</strong>
+                <small>{{ stats.visitors_present }} actuellement présent{{ stats.visitors_present|pluralize }}</small>
+            </a>
+        </div>
+    </div>
+
+    {# --- Files de décision : des listes, pas des graphiques --- #}
+    <div class="panel-card mb-4">
+        <div class="panel-header">
+            <h4>En attente de décision</h4>
+        </div>
+        <div class="decision-grid">
+            {% if shows_courriers %}
+                <div class="decision-column">
+                    <div class="decision-head">
+                        <strong>{% if peut_viser %}Courriers à viser{% else %}Courriers à transmettre au DG{% endif %}</strong>
+                        <span class="decision-count">{% if peut_viser %}{{ stats.courriers_a_viser }}{% else %}{{ stats.courriers_a_transmettre }}{% endif %}</span>
+                    </div>
+                    {% if peut_viser %}
+                        {% for courrier in decisions.courriers_a_viser %}
+                            <a href="{% url 'courriers:detail' courrier.pk %}" class="decision-item">
+                                <strong>{{ courrier.objet|truncatechars:46 }}</strong>
+                                <span>
+                                    {{ courrier.reference }} · {{ courrier.expediteur|truncatechars:26 }}
+                                    {% if courrier.is_urgent %} · urgent{% endif %}
+                                </span>
+                            </a>
+                        {% empty %}
+                            <p class="decision-none mb-0">Aucun courrier en attente de votre visa.</p>
+                        {% endfor %}
+                    {% else %}
+                        {% for courrier in decisions.courriers_a_transmettre %}
+                            <a href="{% url 'courriers:detail' courrier.pk %}" class="decision-item">
+                                <strong>{{ courrier.objet|truncatechars:46 }}</strong>
+                                <span>{{ courrier.reference }} · reçu le {{ courrier.date_reception|date:"d/m/Y" }}</span>
+                            </a>
+                        {% empty %}
+                            <p class="decision-none mb-0">Aucun courrier en attente de transmission.</p>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {% if shows_diplomas %}
+                <div class="decision-column">
+                    <div class="decision-head">
+                        <strong>Lots de diplômes à signer</strong>
+                        <span class="decision-count">{{ stats.lots_a_signer }}</span>
+                    </div>
+                    {% for lot in decisions.lots_a_signer %}
+                        <a href="{% url 'diplomas:lot_detail' lot.pk %}" class="decision-item">
+                            <strong>{{ lot.reference }}</strong>
+                            <span>
+                                {{ lot.etablissement|truncatechars:30 }} · {{ lot.nombre_enregistre }} diplôme{{ lot.nombre_enregistre|pluralize }}
+                                {% if lot.date_transmission_dg %} · transmis le {{ lot.date_transmission_dg|date:"d/m" }}{% endif %}
+                            </span>
+                        </a>
+                    {% empty %}
+                        <p class="decision-none mb-0">Aucun lot en attente de signature.</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="decision-column">
+                <div class="decision-head">
+                    <strong>Tâches traitées à valider</strong>
+                    <span class="decision-count">{{ stats.tasks_to_validate }}</span>
+                </div>
+                {% for task in decisions.taches_a_valider %}
+                    <a href="{% url 'tasks:edit' task.pk %}" class="decision-item">
+                        <strong>{{ task.titre|truncatechars:46 }}</strong>
+                        <span>
+                            {{ task.service_concerne.nom|default:"Sans service" }}
+                            {% if task.assigne_a %} · {{ task.assigne_a.get_full_name|default:task.assigne_a.username }}{% endif %}
+                        </span>
+                    </a>
+                {% empty %}
+                    <p class="decision-none mb-0">Aucune tâche en attente de validation.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% comment %}
+        Répartitions : comparaison de grandeurs, une seule teinte, la rampe
+        s'assombrit avec l'avancement dans le circuit.
+    {% endcomment %}
+    <div class="panel-card viz-panel mb-4">
+        <div class="panel-header">
+            <h4>Répartition par étape</h4>
+            <span class="text-muted small">{{ periode_libelle }}</span>
+        </div>
+
+        <div class="viz-grid">
+            {% for bloc in distributions %}
+                <figure class="viz-figure">
+                    <figcaption class="viz-title">
+                        <strong>{{ bloc.titre }}</strong>
+                        <span>{{ bloc.sous_titre }}</span>
+                    </figcaption>
+                    {% if bloc.barres %}
+                        <div class="viz-bars">
+                            {% for barre in bloc.barres %}
+                                <a
+                                    href="{{ barre.url }}"
+                                    class="viz-bar-row"
+                                    title="{{ barre.label }} : {{ barre.total }} ({{ barre.part }} % du total). Cliquer pour filtrer."
+                                >
+                                    <span class="viz-bar-label">{{ barre.label }}</span>
+                                    <span class="viz-bar-track">
+                                        <span class="viz-bar-fill step-{{ barre.step }}" style="width: {{ barre.largeur }}%"></span>
+                                    </span>
+                                    <span class="viz-bar-value">
+                                        {{ barre.total }}
+                                        <small>{{ barre.part }} %</small>
+                                    </span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="viz-empty mb-0">Aucune donnée sur ce périmètre.</p>
+                    {% endif %}
+                </figure>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="row g-4 dashboard-content-row align-items-start">
+        <div class="col-xl-8">
+            <div class="panel-card viz-panel mb-4">
+                <div class="panel-header">
+                    <h4>Charge par service</h4>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle stacked-mobile-table">
+                        <thead>
+                            <tr>
+                                <th>Service</th>
+                                <th>Tâches ouvertes</th>
+                                <th>Courriers ({{ periode_libelle }})</th>
+                                <th>Visiteurs du jour</th>
+                                <th>Documents</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ligne in service_load %}
+                                <tr>
+                                    <td data-label="Service">{{ ligne.service.nom }}</td>
+                                    <td data-label="Tâches ouvertes">
+                                        <strong>{{ ligne.service.taches_ouvertes }}</strong>
+                                        <span class="viz-inline-track d-block" role="presentation">
+                                            <span class="viz-inline-fill d-block" style="width: {{ ligne.largeur }}%"></span>
+                                        </span>
+                                    </td>
+                                    <td data-label="Courriers">{{ ligne.service.courriers_periode }}</td>
+                                    <td data-label="Visiteurs du jour">{{ ligne.service.visiteurs_du_jour }}</td>
+                                    <td data-label="Documents">{{ ligne.service.documents_total }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-muted">Aucun service enregistré.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h4>Activités récentes</h4>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle stacked-mobile-table">
+                        <thead>
+                            <tr>
+                                <th>Module</th>
+                                <th>Action</th>
+                                <th>Objet</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in recent_activities %}
+                                <tr>
+                                    <td data-label="Module">{{ item.module }}</td>
+                                    <td data-label="Action">{{ item.action|truncatechars:52 }}</td>
+                                    <td data-label="Objet">{{ item.objet|truncatechars:40 }}</td>
+                                    <td data-label="Date">{{ item.date|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-muted">Aucune activité récente.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="panel-card mb-4">
+                <div class="panel-header">
+                    <h4>Alertes</h4>
+                </div>
+                {% if alerts.courriers_urgents %}
+                    <div class="list-note danger">
+                        <strong>Courriers urgents en circuit</strong>
+                        <span>{{ alerts.courriers_urgents|length }} courrier(s) marqué(s) urgents et non classés.</span>
+                    </div>
+                    {% for courrier in alerts.courriers_urgents %}
+                        <a href="{% url 'courriers:detail' courrier.pk %}" class="list-note list-note-link warning">
+                            <strong>{{ courrier.reference }} — {{ courrier.objet|truncatechars:34 }}</strong>
+                            <span>{{ courrier.get_statut_display }} · {{ courrier.jours_depuis_reception }} jour(s)</span>
+                        </a>
+                    {% endfor %}
+                {% endif %}
+
+                {% if alerts.lots_with_anomalies %}
+                    <div class="list-note danger">
+                        <strong>Lots présentant des anomalies</strong>
+                        <span>La transmission reste bloquée jusqu'à leur traitement.</span>
+                    </div>
+                    {% for lot in alerts.lots_with_anomalies %}
+                        <a href="{% url 'diplomas:lot_detail' lot.pk %}?dstatut=non_conforme" class="list-note list-note-link warning">
+                            <strong>{{ lot.reference }} — {{ lot.nombre_anomalies }} anomalie(s)</strong>
+                            <span>{{ lot.etablissement|truncatechars:30 }}</span>
+                        </a>
+                    {% endfor %}
+                {% endif %}
+
+                {% for task in alerts.late_tasks %}
+                    <a href="{% url 'tasks:edit' task.pk %}" class="list-note list-note-link danger">
+                        <strong>{{ task.titre|truncatechars:38 }}</strong>
+                        <span>{{ task.overdue_label }} · {{ task.get_statut_display }}</span>
+                    </a>
+                {% endfor %}
+
+                {% if not alerts.courriers_urgents and not alerts.lots_with_anomalies and not alerts.late_tasks %}
+                    <p class="text-muted mb-0">Aucune alerte. Rien ne traîne.</p>
+                {% endif %}
+            </div>
+
+            <div class="panel-card mb-4">
+                <div class="panel-header">
+                    <h4>Prochaine réunion</h4>
+                </div>
+                {% if next_meeting %}
+                    <div class="meeting-dashboard-card">
+                        <strong class="d-block mb-2">{{ next_meeting.titre }}</strong>
+                        <div class="small text-muted mb-2">
+                            {{ next_meeting.date_heure|date:"d/m/Y H:i" }} · {{ next_meeting.salle }}
+                            ({{ next_meeting.duree_label }})
+                        </div>
+                        <div class="meeting-inline-countdown mb-3" data-countdown-target="{{ next_meeting.date_heure|date:'c' }}">{{ next_meeting_countdown }}</div>
+                        <a href="{% url 'meetings:list' %}" class="btn btn-sm btn-outline-primary">Voir les réunions</a>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">Aucune réunion validée à venir.</p>
+                {% endif %}
+            </div>
+
+            <div class="panel-card mb-4">
+                <div class="panel-header">
+                    <h4>Visiteurs présents</h4>
+                </div>
+                {% for visitor in alerts.present_visitors %}
+                    <a href="{% url 'visitors:list' %}?statut=present" class="list-note list-note-link">
+                        <strong>{{ visitor.nom_complet }}</strong>
+                        <span>{{ visitor.heure_entree|date:"H:i" }} · {{ visitor.service_visite.nom|default:"Service non précisé" }}</span>
+                    </a>
+                {% empty %}
+                    <p class="text-muted mb-0">Aucun visiteur présent.</p>
+                {% endfor %}
+            </div>
+
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h4>Documents récents</h4>
+                </div>
+                {% for document in recent_documents %}
+                    <a href="{% url 'documents:list' %}" class="list-note list-note-link">
+                        <strong>{{ document.titre|truncatechars:38 }}</strong>
+                        <span>{{ document.get_type_document_display }} · {{ document.date_ajout|date:"d/m/Y H:i" }}</span>
+                    </a>
+                {% empty %}
+                    <p class="text-muted mb-0">Aucun document récent.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

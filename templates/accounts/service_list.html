@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Services | Intranet DGES{% endblock %}
+{% block page_title %}Services de la direction{% endblock %}
+
+{% block content %}
+    <div class="panel-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">{{ total }} service{{ total|pluralize }}</h3>
+                <p class="text-muted mb-0">
+                    Les services structurent la visibilité : un agent voit par défaut l'activité
+                    de son service. Un service inactif n'est plus proposé mais reste dans l'historique.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 page-actions">
+                <a href="{% url 'accounts:access_panel' %}" class="btn btn-outline-secondary">Panneau d'accès</a>
+                <a href="{% url 'accounts:service_create' %}" class="btn btn-primary">Nouveau service</a>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table align-middle stacked-mobile-table">
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Responsable</th>
+                        <th>Agents</th>
+                        <th>État</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for service in services %}
+                        <tr>
+                            <td data-label="Service">
+                                <strong>{{ service.nom }}</strong>
+                                {% if service.est_service_courrier %}
+                                    <span class="diploma-flag">Courrier</span>
+                                {% endif %}
+                                {% if service.description %}
+                                    <small class="d-block text-muted">{{ service.description|truncatechars:70 }}</small>
+                                {% endif %}
+                            </td>
+                            <td data-label="Responsable">
+                                {% if service.responsable %}
+                                    {{ service.responsable.get_full_name|default:service.responsable.username }}
+                                {% else %}
+                                    <span class="text-muted">Non désigné</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Agents">{{ service.membres_total }}</td>
+                            <td data-label="État">
+                                {% if service.actif %}
+                                    <span class="badge diploma-status-compliant">Actif</span>
+                                {% else %}
+                                    <span class="badge diploma-status-archived">Inactif</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Action" class="text-end table-actions">
+                                <div class="action-icon-bar justify-content-end">
+                                    <a
+                                        href="{% url 'accounts:service_edit' service.pk %}"
+                                        class="action-icon-button action-icon-button-primary"
+                                        aria-label="Modifier le service {{ service.nom }}"
+                                        title="Modifier"
+                                    >
+                                        {% include "includes/action_icon.html" with icon="edit" %}
+                                    </a>
+                                    <form
+                                        method="post"
+                                        action="{% url 'accounts:service_delete' service.pk %}"
+                                        class="action-icon-form"
+                                        data-confirm-form="Supprimer le service {{ service.nom }} ?"
+                                        data-confirm-title="Supprimer le service"
+                                        data-confirm-accept="Supprimer"
+                                        data-confirm-tone="danger"
+                                    >
+                                        {% csrf_token %}
+                                        <button
+                                            type="submit"
+                                            class="action-icon-button action-icon-button-danger"
+                                            aria-label="Supprimer le service {{ service.nom }}"
+                                            title="Supprimer"
+                                        >
+                                            {% include "includes/action_icon.html" with icon="delete" %}
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5">
+                                <div class="diploma-empty">
+                                    <strong>Aucun service enregistré</strong>
+                                    <span>
+                                        Créez les services réels de la direction : ils conditionnent
+                                        la visibilité des documents, des tâches et des courriers.
+                                    </span>
+                                    <a href="{% url 'accounts:service_create' %}" class="btn btn-primary btn-sm">Créer un service</a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

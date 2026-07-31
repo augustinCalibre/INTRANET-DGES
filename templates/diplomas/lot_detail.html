@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lot.reference }} | Intranet DGES{% endblock %}
+{% block page_title %}{{ lot.reference }}{% endblock %}
+
+{% block content %}
+    <div class="panel-card diploma-lot-head mb-4">
+        <div class="diploma-lot-head-top">
+            <div>
+                <span class="diploma-lot-kicker">Lot d'arrivée</span>
+                <h3 class="diploma-lot-title">{{ lot.etablissement }}</h3>
+                <p class="diploma-lot-meta mb-0">
+                    Reçu le {{ lot.date_arrivee|date:"d/m/Y" }}
+                    {% if lot.agent_receptionnaire %}
+                        · par {{ lot.agent_receptionnaire.get_full_name|default:lot.agent_receptionnaire.username }}
+                    {% endif %}
+                    {% if lot.service_concerne %} · {{ lot.service_concerne.nom }}{% endif %}
+                </p>
+            </div>
+            <div class="diploma-lot-head-actions">
+                <span class="{{ lot.status_badge_class }} diploma-status-large">{{ lot.get_statut_display }}</span>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'diplomas:lot_list' %}" class="btn btn-outline-secondary btn-sm">Retour au registre</a>
+                    <a href="{% url 'diplomas:lot_export' lot.pk %}" class="btn btn-outline-primary btn-sm">Exporter en CSV</a>
+                    {% if can_manage %}
+                        <a href="{% url 'diplomas:lot_edit' lot.pk %}" class="btn btn-outline-primary btn-sm">Modifier la fiche</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <ol class="diploma-stepper" aria-label="Étapes de traitement du lot">
+            {% for step in steps %}
+                <li class="diploma-step {% if step.is_done %}is-done{% endif %} {% if step.is_current %}is-current{% endif %}">
+                    <span class="diploma-step-dot" aria-hidden="true">{% if step.is_done %}&check;{% else %}{{ step.index }}{% endif %}</span>
+                    <span class="diploma-step-label">{{ step.label }}</span>
+                </li>
+            {% endfor %}
+        </ol>
+
+        <div class="diploma-metric-grid">
+            <div class="diploma-metric">
+                <span>Annoncé</span>
+                <strong>{{ lot.nombre_annonce }}</strong>
+            </div>
+            <div class="diploma-metric">
+                <span>Enregistré</span>
+                <strong>{{ lot.nombre_enregistre }}</strong>
+            </div>
+            <div class="diploma-metric {% if lot.has_ecart %}is-warning{% endif %}">
+                <span>Écart</span>
+                <strong>{% if lot.has_ecart %}{{ lot.ecart }}{% else %}0{% endif %}</strong>
+                {% if lot.has_ecart %}<small>{{ lot.ecart_label }}</small>{% endif %}
+            </div>
+            <div class="diploma-metric {% if lot.has_anomalies %}is-danger{% endif %}">
+                <span>Anomalies</span>
+                <strong>{{ lot.nombre_anomalies }}</strong>
+            </div>
+            {% if lot.date_transmission_dg %}
+                <div class="diploma-metric">
+                    <span>Transmis au DG</span>
+                    <strong>{{ lot.date_transmission_dg|date:"d/m/Y" }}</strong>
+                    <small>{{ lot.date_transmission_dg|date:"H:i" }}{% if lot.transmis_par %} · {{ lot.transmis_par.get_full_name|default:lot.transmis_par.username }}{% endif %}</small>
+                </div>
+            {% endif %}
+            {% if lot.date_signature %}
+                <div class="diploma-metric is-success">
+                    <span>Signé</span>
+                    <strong>{{ lot.date_signature|date:"d/m/Y" }}</strong>
+                    <small>{{ lot.date_signature|date:"H:i" }}{% if lot.signe_par %} · {{ lot.signe_par.get_full_name|default:lot.signe_par.username }}{% endif %}</small>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if lot.observation %}
+            <div class="list-note info mt-3">
+                <strong>Observation</strong>
+                <span>{{ lot.observation|linebreaksbr }}</span>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if transitions %}
+        <div class="panel-card mb-4">
+            <div class="panel-header">
+                <h4>Actions disponibles</h4>
+            </div>
+            <div class="diploma-action-grid">
+                {% for transition in transitions %}
+                    <div class="diploma-transition-card tone-{{ transition.tone }} {% if transition.blocked_reason %}is-blocked{% endif %}">
+                        <div class="diploma-transition-head">
+                            <span class="diploma-transition-icon" aria-hidden="true">
+                                {% include "includes/action_icon.html" with icon=transition.icon %}
+                            </span>
+                            <strong>{{ transition.label }}</strong>
+                        </div>
+                        <p class="diploma-transition-help">{{ transition.help }}</p>
+                        {% if transition.blocked_reason %}
+                            <p class="diploma-transition-blocked mb-0">{{ transition.blocked_reason }}</p>
+                        {% else %}
+                            <form
+                                method="post"
+                                action="{% url 'diplomas:lot_status' lot.pk transition.target %}"
+                                data-confirm-form="{{ transition.confirm }}"
+                                data-confirm-title="{{ transition.label }}"
+                                data-confirm-accept="Confirmer"
+                                {% if transition.tone == "danger" %}data-confirm-tone="danger"{% endif %}
+                            >
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                {% if transition.require_comment %}
+                                    <label class="form-label" for="motif{{ forloop.counter }}">Motif (obligatoire)</label>
+                                    <textarea
+                                        class="form-control mb-2"
+                                        id="motif{{ forloop.counter }}"
+                                        name="commentaire"
+                                        rows="2"
+                                        required
+                                        placeholder="Précisez la raison de ce retour"
+                                    ></textarea>
+                                {% endif %}
+                                <button type="submit" class="btn btn-sm {% if transition.tone == 'danger' %}btn-outline-secondary{% else %}btn-primary{% endif %}">
+                                    {{ transition.label }}
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-xl-8">
+            <div class="panel-card">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 page-section-header">
+                    <div>
+                        <h4 class="h6 mb-1">Diplômes du lot</h4>
+                        <p class="text-muted mb-0 small">{{ page_obj.paginator.count }} diplôme{{ page_obj.paginator.count|pluralize }} enregistré{{ page_obj.paginator.count|pluralize }}.</p>
+                    </div>
+                    {% if can_manage and lot.allows_diploma_edition %}
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{% url 'diplomas:diploma_import' lot.pk %}" class="btn btn-outline-primary btn-sm">Importer un fichier</a>
+                            <a href="{% url 'diplomas:diploma_create' lot.pk %}" class="btn btn-primary btn-sm">Ajouter un diplôme</a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                {% if lot.has_anomalies %}
+                    <div class="list-note danger mb-3">
+                        <strong>{{ lot.nombre_anomalies }} anomalie{{ lot.nombre_anomalies|pluralize }} à traiter</strong>
+                        <span>La transmission à la signature reste bloquée tant qu'un diplôme est marqué non conforme.</span>
+                        <a href="?dstatut=non_conforme" class="btn btn-sm btn-outline-secondary mt-2">Afficher les anomalies</a>
+                    </div>
+                {% endif %}
+
+                <form method="get" class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm" name="dq" value="{{ dq }}" placeholder="Nom, numéro ou filière" aria-label="Rechercher un diplôme du lot">
+                    </div>
+                    <div class="col-md-4">
+                        <select name="dstatut" class="form-select form-select-sm" aria-label="Filtrer par statut">
+                            <option value="">Tous les statuts</option>
+                            {% for value, label in diploma_status_choices %}
+                                <option value="{{ value }}" {% if dstatut == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button type="submit" class="btn btn-outline-primary btn-sm">Filtrer</button>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table align-middle stacked-mobile-table">
+                        <thead>
+                            <tr>
+                                <th>Bénéficiaire</th>
+                                <th>Numéro</th>
+                                <th>Filière</th>
+                                <th>Année</th>
+                                <th>Statut</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for diplome in diplomas %}
+                                <tr {% if diplome.is_anomalie %}class="diploma-row-anomaly"{% endif %}>
+                                    <td data-label="Bénéficiaire">
+                                        <a href="{% url 'diplomas:diploma_detail' diplome.pk %}">{{ diplome.nom_beneficiaire }}</a>
+                                        {% if diplome.anomalie %}
+                                            <small class="d-block text-danger">{{ diplome.get_anomalie_display }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Numéro">{{ diplome.numero_diplome }}</td>
+                                    <td data-label="Filière">{{ diplome.filiere|default:"-" }}</td>
+                                    <td data-label="Année">{{ diplome.annee_academique|default:"-" }}</td>
+                                    <td data-label="Statut"><span class="{{ diplome.status_badge_class }}">{{ diplome.get_statut_display }}</span></td>
+                                    <td data-label="Action" class="text-end table-actions">
+                                        <div class="action-icon-bar justify-content-end">
+                                            <a
+                                                href="{% url 'diplomas:diploma_detail' diplome.pk %}"
+                                                class="action-icon-button action-icon-button-neutral"
+                                                aria-label="Consulter la fiche de {{ diplome.nom_beneficiaire }}"
+                                                title="Consulter la fiche"
+                                            >
+                                                {% include "includes/action_icon.html" with icon="view" %}
+                                            </a>
+                                            {% if can_manage and lot.allows_diploma_edition %}
+                                                {% if diplome.statut != "conforme" %}
+                                                    <form
+                                                        method="post"
+                                                        action="{% url 'diplomas:diploma_mark_compliant' diplome.pk %}"
+                                                        class="action-icon-form"
+                                                        data-confirm-form="Déclarer conforme le diplôme de {{ diplome.nom_beneficiaire }} ?"
+                                                        data-confirm-title="Déclarer conforme"
+                                                        data-confirm-accept="Déclarer conforme"
+                                                    >
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                        <button
+                                                            type="submit"
+                                                            class="action-icon-button action-icon-button-success"
+                                                            aria-label="Déclarer conforme le diplôme de {{ diplome.nom_beneficiaire }}"
+                                                            title="Déclarer conforme"
+                                                        >
+                                                            {% include "includes/action_icon.html" with icon="done" %}
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                                <a
+                                                    href="{% url 'diplomas:diploma_edit' diplome.pk %}"
+                                                    class="action-icon-button action-icon-button-primary"
+                                                    aria-label="Modifier le diplôme de {{ diplome.nom_beneficiaire }}"
+                                                    title="Modifier / signaler une anomalie"
+                                                >
+                                                    {% include "includes/action_icon.html" with icon="edit" %}
+                                                </a>
+                                            {% endif %}
+                                            {% if can_delete %}
+                                                <form
+                                                    method="post"
+                                                    action="{% url 'diplomas:diploma_delete' diplome.pk %}"
+                                                    class="action-icon-form"
+                                                    data-confirm-form="Supprimer définitivement le diplôme de {{ diplome.nom_beneficiaire }} ?"
+                                                    data-confirm-title="Supprimer le diplôme"
+                                                    data-confirm-accept="Supprimer"
+                                                    data-confirm-tone="danger"
+                                                >
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                    <button
+                                                        type="submit"
+                                                        class="action-icon-button action-icon-button-danger"
+                                                        aria-label="Supprimer le diplôme de {{ diplome.nom_beneficiaire }}"
+                                                        title="Supprimer"
+                                                    >
+                                                        {% include "includes/action_icon.html" with icon="delete" %}
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6">
+                                        <div class="diploma-empty">
+                                            <strong>Aucun diplôme dans ce lot</strong>
+                                            <span>
+                                                {% if dq or dstatut %}
+                                                    Aucun diplôme ne correspond à ces critères.
+                                                {% else %}
+                                                    Saisissez les diplômes un par un, ou importez le tableau fourni par l'établissement.
+                                                {% endif %}
+                                            </span>
+                                            {% if can_manage and lot.allows_diploma_edition and not dq and not dstatut %}
+                                                <div class="d-flex gap-2">
+                                                    <a href="{% url 'diplomas:diploma_create' lot.pk %}" class="btn btn-primary btn-sm">Ajouter un diplôme</a>
+                                                    <a href="{% url 'diplomas:diploma_import' lot.pk %}" class="btn btn-outline-primary btn-sm">Importer un fichier</a>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% include "includes/pagination.html" %}
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h4>Traçabilité</h4>
+                </div>
+                <ol class="diploma-timeline">
+                    {% for item in histories %}
+                        <li class="diploma-timeline-item">
+                            <span class="diploma-timeline-dot" aria-hidden="true"></span>
+                            <div>
+                                <strong>{{ item.action }}</strong>
+                                <span class="diploma-timeline-meta">
+                                    {% if item.utilisateur %}{{ item.utilisateur.get_full_name|default:item.utilisateur.username }} · {% endif %}
+                                    {{ item.date|date:"d/m/Y H:i" }}
+                                </span>
+                                {% if item.commentaire %}
+                                    <p class="diploma-timeline-comment mb-0">{{ item.commentaire }}</p>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% empty %}
+                        <li class="text-muted">Aucun mouvement enregistré.</li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+    </div>
+{% endblock %}

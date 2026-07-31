@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Connexion | Intranet DGES{% endblock %}
+
+{% block public_content %}
+    <section class="login-section">
+        <div class="login-layout">
+            <div class="login-showcase">
+                <div class="login-showcase-inner">
+                    <div class="login-brand-lockup">
+                        <div class="login-brand-mark">
+                            <img src="{% static 'img/logo-ministere.jpg' %}" alt="Logo du ministere de l'Enseignement superieur" class="login-logo">
+                        </div>
+                        <div>
+                            <small class="login-kicker">Direction generale de l'enseignement superieur</small>
+                            <h1 class="login-heading">Intranet DGES</h1>
+                        </div>
+                    </div>
+                    <p class="login-lead">Plateforme interne pour suivre les taches, les visiteurs, les documents, les courriers et les echanges entre services.</p>
+                    <div class="login-chip-row">
+                        <span class="login-chip">Taches</span>
+                        <span class="login-chip">Visiteurs</span>
+                        <span class="login-chip">Documents</span>
+                        <span class="login-chip">Messagerie</span>
+                    </div>
+                    <div class="login-meta-grid">
+                        <div class="login-meta-card">
+                            <span class="login-meta-label">Acces local</span>
+                            <strong>{{ intranet_host }}</strong>
+                            <p>Utilisation reservee au reseau interne LAN et Wi-Fi.</p>
+                            {% if intranet_fallback_url %}
+                                <p class="mb-0">Secours LAN : <strong>{{ intranet_fallback_url }}</strong></p>
+                            {% endif %}
+                        </div>
+                        <div class="login-meta-card">
+                            <span class="login-meta-label">Connexion</span>
+                            <strong>Acces securise</strong>
+                            <p>Authentification requise pour tous les agents autorises.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="login-card shadow-sm">
+                <div class="login-form-shell">
+                    <div class="login-form-top">
+                        <div class="login-form-toolbar">
+                            <small class="login-form-kicker">Acces securise</small>
+                            <button type="button" class="utility-button theme-toggle login-theme-toggle" data-theme-toggle aria-label="Basculer le theme" aria-pressed="false">
+                                <span class="theme-toggle-track" aria-hidden="true">
+                                    <span class="theme-toggle-thumb"></span>
+                                </span>
+                                <span data-theme-label>Mode sombre</span>
+                            </button>
+                        </div>
+                        <h2 class="login-form-title">Connexion</h2>
+                        <p class="login-form-text mb-0">Authentifiez-vous pour acceder aux modules internes de la DGES.</p>
+                    </div>
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+                        {% for field in form %}
+                            <div class="mb-3">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary w-100">Se connecter</button>
+                    </form>
+                    <div class="login-hostname mt-3 mb-0">
+                        {% for access_url in intranet_access_urls %}
+                            <p class="mb-1">Adresse locale : <strong>{{ access_url }}</strong></p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}

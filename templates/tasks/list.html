@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Taches | Intranet DGES{% endblock %}
+{% block page_title %}Suivi des taches{% endblock %}
+
+{% block content %}
+    <div class="panel-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">Liste des taches</h3>
+                <p class="text-muted mb-0">Suivi operationnel avec priorites, statuts et historique.</p>
+            </div>
+            <div class="d-flex gap-2 page-actions">
+                <a href="{% url 'dashboard:home' %}" class="btn btn-outline-secondary">Retour au tableau de bord</a>
+                <div class="btn-group view-switch" role="group" aria-label="Changer la vue des taches">
+                    <a href="{% url 'tasks:list' %}" class="btn btn-primary" aria-current="page">Vue liste</a>
+                    <a href="{% url 'tasks:kanban' %}" class="btn btn-outline-primary">Vue kanban</a>
+                </div>
+                <a href="{% url 'tasks:create' %}" class="btn btn-primary">Nouvelle tache</a>
+            </div>
+        </div>
+
+        {% if active_filter_label %}
+            <div class="filter-notice mb-4">
+                <span class="filter-notice-label">Vue rapide</span>
+                <strong>{{ active_filter_label }}</strong>
+                <a href="{% url 'tasks:list' %}" class="btn btn-sm btn-outline-secondary">Afficher tout</a>
+            </div>
+        {% endif %}
+
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-lg-4">
+                <input type="text" class="form-control" name="q" value="{{ search_term }}" placeholder="Titre, description ou service">
+            </div>
+            <div class="col-lg-3">
+                <select name="statut" class="form-select">
+                    <option value="">Tous les statuts</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-3">
+                <select name="priorite" class="form-select">
+                    <option value="">Toutes les priorites</option>
+                    {% for value, label in priority_choices %}
+                        <option value="{{ value }}" {% if priority_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2 d-grid">
+                <button type="submit" class="btn btn-outline-primary">Filtrer</button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table align-middle stacked-mobile-table">
+                <thead>
+                    <tr>
+                        <th>Tache</th>
+                        <th>Service</th>
+                        <th>Assigne a</th>
+                        <th>Priorite</th>
+                        <th>Statut</th>
+                        <th>Echeance</th>
+                        <th>Mise a jour</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in tasks %}
+                        <tr>
+                            <td data-label="Tache">
+                                <strong>{{ task.titre }}</strong>
+                                <div class="small text-muted">{{ task.description|truncatechars:90 }}</div>
+                            </td>
+                            <td data-label="Service">{{ task.service_concerne|default:"-" }}</td>
+                            <td data-label="Assigne a">{{ task.assigne_a.get_full_name|default:task.assigne_a.username|default:"-" }}</td>
+                            <td data-label="Priorite"><span class="badge text-bg-light">{{ task.get_priorite_display }}</span></td>
+                            <td data-label="Statut">
+                                {% if task.is_overdue %}
+                                    <span class="badge status-badge-overdue">En retard</span>
+                                    <div class="small deadline-overdue mt-1">{{ task.days_overdue }} jour{% if task.days_overdue > 1 %}s{% endif %} de retard</div>
+                                {% else %}
+                                    <span class="badge text-bg-light">{{ task.get_statut_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Echeance">
+                                {% if task.date_limite %}
+                                    <div class="{% if task.is_overdue %}deadline-overdue fw-semibold{% endif %}">{{ task.date_limite|date:"d/m/Y" }}</div>
+                                    {% if task.is_overdue %}
+                                        <div class="small deadline-overdue">{{ task.overdue_label }}</div>
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td data-label="Mise a jour">{{ task.updated_at|date:"d/m/Y H:i" }}</td>
+                            <td data-label="Action" class="text-end table-actions">
+                                <div class="action-icon-bar justify-content-end">
+                                    <a
+                                        href="{% url 'tasks:edit' task.pk %}"
+                                        class="action-icon-button action-icon-button-primary"
+                                        aria-label="Modifier la tache {{ task.titre }}"
+                                        title="Modifier"
+                                    >
+                                        {% include "includes/action_icon.html" with icon="edit" %}
+                                    </a>
+                                    {% if can_delete %}
+                                        <form
+                                            method="post"
+                                            action="{% url 'tasks:delete' task.pk %}"
+                                            class="action-icon-form"
+                                            data-confirm-form="Confirmer la suppression de cette tache ?"
+                                            data-confirm-title="Supprimer la tache"
+                                            data-confirm-accept="Supprimer"
+                                            data-confirm-tone="danger"
+                                        >
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button
+                                                type="submit"
+                                                class="action-icon-button action-icon-button-danger"
+                                                aria-label="Supprimer la tache {{ task.titre }}"
+                                                title="Supprimer"
+                                            >
+                                                {% include "includes/action_icon.html" with icon="delete" %}
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-muted">Aucune tache trouvee.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | Intranet DGES{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="panel-card form-card">
+        <div class="panel-header">
+            <h4>{% if is_creation %}Réception d'un courrier{% else %}Fiche du courrier{% endif %}</h4>
+        </div>
+        <p class="text-muted">
+            {% if is_creation %}
+                Enregistrez le courrier tel qu'il arrive. Le circuit de visa démarre ensuite depuis
+                sa fiche : traitement, transmission au secrétariat, puis au Directeur Général.
+            {% else %}
+                La fiche n'est modifiable que tant que le courrier n'est pas engagé dans le circuit
+                de visa. Les dates de transmission et de visa sont renseignées automatiquement.
+            {% endif %}
+        </p>
+
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="row g-3">
+                {% for field in form %}
+                    <div class="{% if field.name == 'objet' or field.name == 'observation' %}col-12{% else %}col-md-6{% endif %}">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-4 form-actions">
+                <a href="{% if courrier %}{% url 'courriers:detail' courrier.pk %}{% else %}{% url 'courriers:list' %}{% endif %}" class="btn btn-outline-secondary">
+                    {% if courrier %}Retour à la fiche{% else %}Retour au registre{% endif %}
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    {% if is_creation %}Enregistrer le courrier{% else %}Enregistrer les modifications{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

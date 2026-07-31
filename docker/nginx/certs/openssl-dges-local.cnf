@@ -1,0 +1,22 @@
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+x509_extensions = v3_req
+distinguished_name = dn
+
+[dn]
+CN = intranet-dges.local
+
+[v3_req]
+subjectAltName = @alt_names
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+
+[alt_names]
+DNS.1 = intranet-dges.local
+DNS.2 = messagerie.dges.local
+IP.1 = 192.168.100.5
+IP.2 = 192.168.100.11
+IP.3 = 127.0.0.1
