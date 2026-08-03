@@ -539,6 +539,86 @@ docker compose down
 
 Pour arrêter sans perdre les données persistantes, ne pas supprimer les volumes Docker.
 
+## Sauvegarde automatique
+
+Un service Docker dédié (`backup`) réalise **une sauvegarde par jour**, sans intervention.
+
+Il tourne dans Docker plutôt que dans le planificateur Windows pour une raison précise :
+Docker Desktop s'exécute dans la session de l'utilisateur, et une tâche planifiée Windows
+échouerait silencieusement session fermée. Un service Docker, lui, repart avec la pile
+après un redémarrage. Et si Docker est arrêté, l'application l'est aussi : aucune donnée
+ne change.
+
+### Ce qui est sauvegardé
+
+Chaque nuit, dans un sous-dossier horodaté **créé automatiquement** :
+
+| Fichier | Contenu |
+|---|---|
+| `intranet-postgres.sql.gz` | base de l'application |
+| `nextcloud-postgres.sql.gz` | base de la messagerie |
+| `media.tar.gz` | pièces jointes : documents, courriers, diplômes |
+| `MANIFESTE.txt` | contenu, tailles et commandes de restauration |
+
+Une sauvegarde interrompue est renommée avec le suffixe **`_INCOMPLETE`** : une sauvegarde
+partielle qu'on croit valable est plus dangereuse qu'une absence de sauvegarde.
+
+### Réglages (`.env`)
+
+| Variable | Rôle | Défaut |
+|---|---|---|
+| `BACKUP_DIR` | destination sur la machine hôte | `./sauvegardes` |
+| `BACKUP_HOUR` | heure de déclenchement (0–23) | `1` |
+| `BACKUP_RETENTION_DAYS` | jours conservés, `0` désactive la purge | `14` |
+| `BACKUP_INCLUDE_NEXTCLOUD_FILES` | inclure les fichiers Nextcloud (volumineux) | `0` |
+| `BACKUP_ON_START` | sauvegarder au démarrage du conteneur | `0` |
+
+**Placez `BACKUP_DIR` sur le second disque** : une sauvegarde sur le même disque que la
+base ne protège de rien en cas de panne matérielle.
+
+```env
+BACKUP_DIR=D:/sauvegardes-intranet-dges
+```
+
+Si Docker ne parvient pas à créer le dossier, créez-le une fois à la main.
+
+### Vérifier et déclencher à la main
+
+```powershell
+docker compose logs backup                              # journal et prochaine échéance
+docker compose exec backup /usr/local/bin/sauvegarde.sh # sauvegarde immédiate
+```
+
+### Restaurer
+
+**La base de l'application :**
+
+```powershell
+docker compose exec -T db psql -U intranet_dges_user -d postgres -c "DROP DATABASE intranet_dges;"
+docker compose exec -T db psql -U intranet_dges_user -d postgres -c "CREATE DATABASE intranet_dges;"
+gzip -dc sauvegardes\2026-08-03_21h35\intranet-postgres.sql.gz | docker compose exec -T db psql -U intranet_dges_user -d intranet_dges
+docker compose restart web
+```
+
+**Les pièces jointes :**
+
+```powershell
+docker run --rm -v v1_media_data:/media -v "${PWD}\sauvegardes\2026-08-03_21h35:/sauvegarde" alpine sh -c "cd /media && tar -xzf /sauvegarde/media.tar.gz"
+```
+
+**Essayez la restauration sans rien casser** — restaurez dans une base d'essai et comparez
+les compteurs :
+
+```powershell
+docker compose exec -T db psql -U intranet_dges_user -d postgres -c "CREATE DATABASE essai_restauration;"
+gzip -dc sauvegardes\...\intranet-postgres.sql.gz | docker compose exec -T db psql -U intranet_dges_user -d essai_restauration
+docker compose exec -T db psql -U intranet_dges_user -d essai_restauration -c "select count(*) from courriers_courrier;"
+docker compose exec -T db psql -U intranet_dges_user -d postgres -c "DROP DATABASE essai_restauration;"
+```
+
+Cette procédure a été exécutée : la base restaurée présentait exactement les mêmes
+volumes que la base vivante, contenu compris.
+
 ## Journalisation et historique des connexions
 
 **Journal applicatif.** Deux destinations : la sortie standard, que Docker capture

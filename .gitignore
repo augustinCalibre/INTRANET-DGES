@@ -16,6 +16,12 @@ staticfiles/
 logs/
 .tmp/
 
+# Sauvegardes : contiennent des dumps complets de la base.
+# Ne doivent jamais partir sur un dépôt distant.
+sauvegardes/
+backups/
+*.sql.gz
+
 # Secrets
 .env
 

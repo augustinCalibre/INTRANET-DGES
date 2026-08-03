@@ -41,7 +41,8 @@ Sans cela, le nom `.local` ne sera pas resolu partout.
 - Git installe ;
 - acces Internet temporaire pour cloner le depot et recuperer les images Docker ;
 - connexion RJ45 vers le routeur principal ;
-- utilisateur Windows autorise a lancer Docker Desktop.
+- utilisateur Windows autorise a lancer Docker Desktop ;
+- un **second disque** pour les sauvegardes, distinct de celui qui porte le projet.
 
 ## Etape 1 - Fixer l'IP du serveur
 
@@ -181,6 +182,65 @@ powershell -ExecutionPolicy Bypass -File .\scripts\windows\update-from-github.ps
 
 Pour l'exposition reseau, branchez le serveur sur le routeur principal et non sur un repeteur. C'est la meilleure facon d'eviter les comportements differents selon la borne Wi-Fi a laquelle le client est connecte.
 
+## Sauvegarde automatique sur le second disque
+
+Le service Docker `backup` sauvegarde chaque nuit sans intervention. Sur le serveur, la
+seule chose a faire est de pointer la destination vers le **second disque** : une
+sauvegarde posee sur le meme disque que la base ne protege de rien en cas de panne
+materielle.
+
+### Mise en place, une seule fois
+
+```powershell
+# 1. Creer le dossier (Docker n'y parvient pas toujours sur Windows)
+New-Item -ItemType Directory -Force E:\sauvegardes-intranet-dges
+```
+
+Puis dans `.env`, en adaptant la lettre du disque :
+
+```env
+BACKUP_DIR=E:/sauvegardes-intranet-dges
+BACKUP_HOUR=1
+BACKUP_RETENTION_DAYS=90
+BACKUP_INCLUDE_NEXTCLOUD_FILES=1
+```
+
+Avec un disque d'1 To, la retention peut etre large : une sauvegarde complete pese
+quelques megaoctets au demarrage du service. Quatre-vingt-dix jours protegent contre une
+corruption decouverte tardivement, ce que quatorze jours ne permettent pas.
+
+```powershell
+# 2. Appliquer et verifier immediatement
+docker compose up -d backup
+docker compose exec backup /usr/local/bin/sauvegarde.sh
+```
+
+Les fichiers doivent apparaitre dans `E:\sauvegardes-intranet-dges\AAAA-MM-JJ_HHhMM\`.
+
+### Controles a faire regulierement
+
+```powershell
+docker compose logs backup       # journal et heure de la prochaine sauvegarde
+```
+
+Un dossier suffixe `_INCOMPLETE` signale une sauvegarde interrompue. Ne vous y fiez pas :
+une sauvegarde partielle que l'on croit valable est plus dangereuse qu'une absence de
+sauvegarde.
+
+**Testez la restauration au moins une fois**, sur une base d'essai, sans toucher a la base
+vivante. La procedure complete figure dans le `README.md`, section « Sauvegarde
+automatique ». Une sauvegarde jamais restauree n'est pas une sauvegarde.
+
+### Copie hors machine
+
+Le disque interne protege d'une panne de disque, pas d'un vol, d'un incendie ou d'un
+chiffrement par rancongiciel. Prevoyez une copie du dossier de sauvegarde vers un autre
+local ou un compte institutionnel.
+
+Attention : ces fichiers contiennent la base complete, donc les donnees personnelles des
+agents et des titulaires de diplomes. Un compte cloud personnel n'est pas un support
+approprie.
+
 ## Demarrage quotidien
 
 Pour cette phase Windows temporaire :
@@ -189,7 +249,34 @@ Pour cette phase Windows temporaire :
 - laissez Docker Desktop demarre ;
 - si le PC redemarre, reconnectez-vous une fois pour que Docker Desktop reparte, puis relancez le script de demarrage si besoin.
 
-Pour une vraie disponibilite quotidienne automatique, Ubuntu Server sera plus propre que Windows.
+### Le point sensible : Docker Desktop exige une session ouverte
+
+C'est la principale faiblesse de Windows pour ce role, et il faut la traiter
+explicitement. Docker Desktop ne tourne pas comme un service systeme : il s'execute dans
+la session de l'utilisateur. **Si personne n'est connecte, la pile ne demarre pas** — et
+la sauvegarde de la nuit n'a pas lieu non plus.
+
+Trois reglages a faire sur le serveur :
+
+1. **Docker Desktop au demarrage** : *Settings > General > Start Docker Desktop when you
+   sign in*, et *Settings > General > Open Docker Dashboard at startup* peut rester
+   decoche.
+2. **Ouverture de session automatique** pour un compte dedie au serveur, afin que la
+   session existe apres un redemarrage ou une coupure de courant
+   (`netplwiz`, decocher « Les utilisateurs doivent entrer un nom d'utilisateur… »).
+3. **Verrouiller l'ecran, ne jamais fermer la session** : `Win + L` verrouille en
+   conservant la session ; « Se deconnecter » arreterait Docker et toute la pile.
+
+Ajoutez une verification apres chaque coupure de courant :
+
+```powershell
+docker compose ps          # les 8 services doivent etre Up
+docker compose logs backup # la sauvegarde doit annoncer sa prochaine echeance
+```
+
+Pour une vraie disponibilite quotidienne automatique, Ubuntu Server reste plus propre que
+Windows : Docker y demarre comme un service, sans session ouverte, et la sauvegarde tourne
+meme serveur non supervise.
 
 ## Resume tres court pour aujourd'hui
 
@@ -200,4 +287,6 @@ Pour une vraie disponibilite quotidienne automatique, Ubuntu Server sera plus pr
 5. ouvrez les ports avec `open-firewall-ports.ps1` ;
 6. lancez `start-local-stack.ps1 -Build` ;
 7. testez `https://IP_DU_SERVEUR/` depuis un autre poste ;
-8. pour chaque mise a jour : `git push` ici, puis `update-from-github.ps1 -Build` sur le serveur.
+8. pointez `BACKUP_DIR` vers le second disque, puis lancez une sauvegarde de controle ;
+9. reglez le demarrage automatique de Docker Desktop et l'ouverture de session ;
+10. pour chaque mise a jour : `git push` ici, puis `update-from-github.ps1 -Build` sur le serveur.

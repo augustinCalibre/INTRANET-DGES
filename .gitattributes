@@ -1,0 +1,16 @@
+# Fins de ligne
+#
+# Les scripts exécutés dans les conteneurs Linux doivent conserver des fins de
+# ligne LF. Sur un poste Windows, Git convertit par défaut en CRLF au moment du
+# clone : le shebang « #!/bin/sh » devient « #!/bin/sh\r », le noyau ne trouve
+# pas l'interpréteur, et le conteneur s'arrête sans message clair.
+#
+# Ce fichier garantit que le serveur reçoit les scripts tels qu'ils doivent
+# être, quel que soit le réglage core.autocrlf du poste qui clone.
+
+*.sh text eol=lf
+docker/entrypoint.sh text eol=lf
+docker/backup/*.sh text eol=lf
+
+# Les scripts PowerShell restent en CRLF, convention Windows.
+*.ps1 text eol=crlf

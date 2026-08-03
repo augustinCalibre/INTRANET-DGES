@@ -67,6 +67,34 @@ services:
     networks:
       - intranet_dges_network
 
+  # Sauvegarde quotidienne automatique.
+  # Même image que la base : pg_dump doit être de la même version majeure que
+  # le serveur, sinon le dump est refusé.
+  backup:
+    image: postgres:16-alpine
+    container_name: intranet-dges-backup
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+      NEXTCLOUD_POSTGRES_HOST: nextcloud-db
+      BACKUP_ROOT: /sauvegardes
+      TZ: ${DJANGO_TIME_ZONE:-Africa/Abidjan}
+    entrypoint: ["/usr/local/bin/planificateur.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./docker/backup/sauvegarde.sh:/usr/local/bin/sauvegarde.sh:ro
+      - ./docker/backup/planificateur.sh:/usr/local/bin/planificateur.sh:ro
+      - media_data:/media-intranet:ro
+      - nextcloud_data:/nextcloud-data:ro
+      # Destination sur la machine hôte. Le dossier est créé automatiquement.
+      - ${BACKUP_DIR:-./sauvegardes}:/sauvegardes
+    networks:
+      - intranet_dges_network
+
   nextcloud-app:
     image: ${NEXTCLOUD_IMAGE}
     container_name: intranet-dges-nextcloud-app
