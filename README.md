@@ -563,6 +563,26 @@ Chaque nuit, dans un sous-dossier horodaté **créé automatiquement** :
 Une sauvegarde interrompue est renommée avec le suffixe **`_INCOMPLETE`** : une sauvegarde
 partielle qu'on croit valable est plus dangereuse qu'une absence de sauvegarde.
 
+### Une sauvegarde manquée est rattrapée
+
+Le planificateur ne compte pas le temps restant jusqu'à l'heure fixée : il **compare la
+date réelle** toutes les cinq minutes, et sauvegarde dès qu'un nouveau jour est entamé et
+que l'heure cible est passée.
+
+La distinction est loin d'être théorique. Un simple « dormir jusqu'à 1h00 » échoue dès que
+la machine se met en veille : le conteneur est gelé, le compte à rebours s'arrête avec
+lui, et la sauvegarde de la nuit est perdue sans que personne ne s'en aperçoive. Avec la
+comparaison de date, **un poste rallumé à 8h00 rattrape immédiatement la sauvegarde de la
+nuit**, et le journal l'indique explicitement :
+
+```
+planificateur : sauvegarde de 1h non effectuée (machine éteinte ou en veille) : rattrapage
+```
+
+Le repère de la dernière sauvegarde est écrit dans `.derniere-sauvegarde`, à la racine du
+dossier de destination : il survit au redémarrage du conteneur comme à celui de la
+machine, et empêche une seconde sauvegarde le même jour.
+
 ### Réglages (`.env`)
 
 | Variable | Rôle | Défaut |
