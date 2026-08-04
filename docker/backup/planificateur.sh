@@ -37,6 +37,15 @@ REPERE="$RACINE/.derniere-sauvegarde"
 DEMANDE="$CONTROLE/demande"
 INTERVALLE_CONTROLE=5
 
+# Delai avant de retenter une sauvegarde quotidienne qui a echoue.
+#
+# Le tour de boucle est court parce qu'il ecoute aussi les demandes de
+# l'application. Sans ce frein, une sauvegarde qui echoue — disque debranche,
+# le plus souvent — serait retentee toutes les cinq secondes, noierait le
+# journal et rendrait illisible la cause meme de l'echec.
+DELAI_APRES_ECHEC=900
+PROCHAIN_ESSAI=0
+
 journal() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] planificateur : $*"
 }
@@ -146,11 +155,16 @@ while true; do
 
     # `10#` force la base decimale : sans cela « 08 » et « 09 » seraient lus
     # comme des nombres octaux invalides et la boucle s'arreterait.
-    if [ "$derniere" != "$aujourdhui" ] && [ "$(( 10#$heure ))" -ge "$(( 10#$HEURE_CIBLE ))" ]; then
+    if [ "$derniere" != "$aujourdhui" ] \
+        && [ "$(( 10#$heure ))" -ge "$(( 10#$HEURE_CIBLE ))" ] \
+        && [ "$(date +%s)" -ge "$PROCHAIN_ESSAI" ]; then
         if [ -n "$derniere" ] && [ "$(( 10#$heure ))" -gt "$(( 10#$HEURE_CIBLE ))" ]; then
             journal "sauvegarde de ${HEURE_CIBLE}h non effectuée (machine éteinte ou en veille) : rattrapage"
         fi
-        executer_sauvegarde "$aujourdhui"
+        if ! executer_sauvegarde "$aujourdhui"; then
+            PROCHAIN_ESSAI=$(( $(date +%s) + DELAI_APRES_ECHEC ))
+            journal "nouvelle tentative dans $(( DELAI_APRES_ECHEC / 60 )) minutes"
+        fi
     fi
 
     sleep "$INTERVALLE_CONTROLE"

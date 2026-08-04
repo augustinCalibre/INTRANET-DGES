@@ -188,6 +188,21 @@ rm -rf "$CHANTIER"
 TAILLE="$(du -h "$ARCHIVE" | cut -f1)"
 journal "Sauvegarde terminée : $NOM_ARCHIVE ($TAILLE)"
 
+# --- Temoin du disque de sauvegarde ------------------------------------
+#
+# Il atteste que ce dossier est bien celui ou les sauvegardes atterrissent.
+# Quand le disque est debranche, Docker recree un dossier vide du meme nom
+# dans sa machine virtuelle : meme chemin, meme apparence, mais ni archive ni
+# temoin. C'est ce que l'application regarde pour dire « le disque n'est pas
+# la » au lieu d'afficher un espace libre rassurant qui n'est pas le sien.
+{
+    echo "Disque de sauvegarde de l'intranet DGES"
+    echo "Dernière sauvegarde : $(date '+%d/%m/%Y à %H:%M:%S')"
+    echo
+    echo "Ce fichier atteste que le disque prévu est bien monté."
+    echo "Ne le supprimez pas."
+} > "$RACINE/.disque-sauvegarde" 2>/dev/null || true
+
 # --- Purge des anciennes sauvegardes -----------------------------------
 if [ "$RETENTION" -gt 0 ]; then
     SUPPRIMEES=0

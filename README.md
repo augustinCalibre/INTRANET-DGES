@@ -697,10 +697,24 @@ BACKUP_DIR=E:/sauvegardes-intranet-dges
 
 Si Docker ne parvient pas à créer le dossier, créez-le une fois à la main.
 
-**Vérifiez que Docker atteint réellement ce disque.** Quand il ne sait pas le résoudre —
-disque en exFAT, que WSL 2 ne monte pas, ou disque branché après le démarrage de Docker —
-il crée silencieusement un dossier du même nom dans sa propre machine virtuelle : la
-sauvegarde réussit et n'arrive jamais sur le disque.
+**L'application détecte d'elle-même un disque absent.** Quand Docker ne sait pas résoudre
+le disque — débranché, branché après le démarrage de Docker, ou formaté en exFAT que WSL 2
+ne monte pas — il crée silencieusement un dossier du même nom dans sa propre machine
+virtuelle. Même chemin, espace libre affiché, et pas une sauvegarde derrière.
+
+L'onglet **Sauvegarde et restauration** le reconnaît à deux indices : le témoin
+`.disque-sauvegarde`, réécrit à chaque sauvegarde réussie, et la présence d'archives.
+Aucun des deux sur un volume trop petit pour un disque de sauvegarde, et la page affiche
+une alerte au lieu d'une jauge rassurante — l'espace mesuré ne serait pas celui du disque
+attendu. La liste vide est alors expliquée comme telle : les sauvegardes existent, elles
+sont sur le disque débranché.
+
+Le planificateur, de son côté, espace ses tentatives de quinze minutes après un échec.
+Son tour de boucle est court parce qu'il écoute aussi les demandes de l'application ; sans
+ce frein, un disque absent ferait réessayer toutes les cinq secondes et noierait le
+journal.
+
+**Vérification manuelle**, après chaque rebranchement :
 
 ```powershell
 docker run --rm -v "E:/sauvegardes-intranet-dges:/test" alpine df -h /test
