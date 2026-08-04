@@ -39,6 +39,25 @@ echec() {
 journal "Début de la sauvegarde vers $DESTINATION"
 mkdir -p "$DESTINATION" || echec "impossible de créer $DESTINATION"
 
+# --- Controle de la destination avant d'ecrire quoi que ce soit ---------
+#
+# Une destination mal montee est le piege le plus vicieux : Docker cree
+# silencieusement un dossier dans sa machine virtuelle quand il ne sait pas
+# resoudre un disque de l'hote — un disque externe en exFAT, par exemple. La
+# sauvegarde parait fonctionner, remplit quelques dizaines de megaoctets, et
+# rien n'arrive sur le disque vise. On refuse donc de commencer si la place
+# disponible est manifestement insuffisante.
+ESPACE_MINIMAL_KO="${BACKUP_MIN_FREE_KB:-524288}"
+ESPACE_DISPONIBLE_KO="$(df -Pk "$DESTINATION" | tail -1 | awk '{print $4}')"
+
+if [ -z "$ESPACE_DISPONIBLE_KO" ]; then
+    echec "impossible de mesurer l'espace disponible sur $RACINE"
+fi
+
+if [ "$ESPACE_DISPONIBLE_KO" -lt "$ESPACE_MINIMAL_KO" ]; then
+    echec "espace insuffisant sur la destination : $(( ESPACE_DISPONIBLE_KO / 1024 )) Mo disponibles, $(( ESPACE_MINIMAL_KO / 1024 )) Mo requis. Vérifiez que BACKUP_DIR pointe bien sur le disque prévu et que Docker sait le monter."
+fi
+
 # --- Base de l'intranet ------------------------------------------------
 journal "Base de l'intranet ($POSTGRES_DB)"
 PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
@@ -77,8 +96,11 @@ fi
 # disque dedie.
 if [ "$INCLURE_FICHIERS_NEXTCLOUD" = "1" ] && [ -d /nextcloud-data ]; then
     journal "Fichiers Nextcloud"
+    # Un archivage interrompu, faute de place le plus souvent, laisse aussi
+    # planer un doute sur les fichiers ecrits avant lui : on echoue au lieu
+    # d'avertir.
     tar -czf "$DESTINATION/nextcloud-data.tar.gz" -C /nextcloud-data . \
-        || journal "AVERTISSEMENT : archivage Nextcloud incomplet"
+        || echec "archivage des fichiers Nextcloud"
 fi
 
 # --- Manifeste ---------------------------------------------------------
