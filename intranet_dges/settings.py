@@ -204,7 +204,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Repere de version des fichiers statiques. Nginx les met en cache une semaine :
 # incrementer cette valeur a chaque livraison force les navigateurs a recharger
 # CSS et JS, sans quoi les agents continuent de voir l'ancienne interface.
-ASSET_VERSION = os.getenv("ASSET_VERSION", "20260804-1")
+ASSET_VERSION = os.getenv("ASSET_VERSION", "20260804-2")
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
