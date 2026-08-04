@@ -150,6 +150,16 @@ ROLES_CONSULTATION_COMPTES = {
     ROLE_DIRECTEUR_GENERAL,
 }
 
+# Sauvegarde et restauration de la plateforme.
+#
+# Ce role seul, et deliberement. Restaurer une ancienne sauvegarde efface le
+# travail saisi depuis : c'est un acte d'exploitation informatique, pas une
+# decision administrative. Le Directeur General en est ecarte comme les
+# autres — il demande la restauration, l'ingenieur l'execute.
+ROLES_SAUVEGARDE = {
+    ROLE_ADMINISTRATEUR,
+}
+
 
 # ---------------------------------------------------------------------
 # Permissions Django par groupe

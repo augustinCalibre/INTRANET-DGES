@@ -1,0 +1,134 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+{% comment %}
+    Page servie pendant une restauration, par MaintenanceModeMiddleware.
+
+    Elle n'herite pas de base.html et n'utilise aucun contexte : a ce moment,
+    la base de l'application est detruite puis rechargee. Tout ce qui lirait
+    l'utilisateur, ses notifications ou ses prochaines reunions echouerait.
+    Seuls les fichiers statiques restent disponibles.
+{% endcomment %}
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="refresh" content="10">
+    <title>Maintenance en cours | Intranet DGES</title>
+    <script>
+        (function () {
+            try {
+                var storedTheme = localStorage.getItem("dges-theme");
+                var preferredDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+                var theme = storedTheme || (preferredDark ? "dark" : "light");
+                document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
+            } catch (error) {
+                document.documentElement.setAttribute("data-theme", "light");
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="{% static 'css/dges-ui.css' %}">
+    <style>
+        .maintenance-shell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem 1.25rem;
+            background: var(--page-bg);
+        }
+
+        .maintenance-carte {
+            width: 100%;
+            max-width: 34rem;
+            padding: 2.5rem 2.25rem;
+            border: 1px solid var(--border-soft);
+            border-radius: var(--radius-lg);
+            background: var(--card-bg);
+            box-shadow: var(--panel-shadow);
+            text-align: center;
+        }
+
+        .maintenance-carte h1 {
+            margin: 0 0 0.75rem;
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            font-size: 1.4rem;
+        }
+
+        .maintenance-carte p {
+            margin: 0 0 0.5rem;
+            color: var(--text-muted);
+            font-family: var(--font-sans);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .maintenance-etape {
+            display: inline-block;
+            margin: 1.25rem 0 0.5rem;
+            padding: 0.45rem 1rem;
+            border-radius: var(--radius-pill);
+            background: var(--surface-soft);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+        }
+
+        .maintenance-barre {
+            height: 4px;
+            margin: 1.5rem 0 0.75rem;
+            border-radius: var(--radius-pill);
+            background: var(--surface-muted);
+            overflow: hidden;
+        }
+
+        .maintenance-barre span {
+            display: block;
+            width: 35%;
+            height: 100%;
+            border-radius: var(--radius-pill);
+            background: var(--primary);
+            animation: maintenance-defile 1.4s ease-in-out infinite;
+        }
+
+        @keyframes maintenance-defile {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(340%); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .maintenance-barre span {
+                width: 100%;
+                animation: none;
+            }
+        }
+
+        .maintenance-note {
+            margin-top: 1.5rem;
+            font-size: 0.82rem;
+        }
+    </style>
+</head>
+<body>
+    <main class="maintenance-shell">
+        <div class="maintenance-carte">
+            <h1>Restauration en cours</h1>
+            <p>
+                L'intranet est momentanément fermé le temps de remettre en place une
+                sauvegarde. Il rouvrira de lui-même, sans intervention de votre part.
+            </p>
+
+            <div class="maintenance-barre" aria-hidden="true"><span></span></div>
+
+            {% if message %}
+                <div class="maintenance-etape">{{ message }}</div>
+            {% endif %}
+
+            <p class="maintenance-note">
+                Cette page se rafraîchit toute seule. Si elle persiste au-delà d'une
+                dizaine de minutes, prévenez l'ingénieur informatique.
+            </p>
+        </div>
+    </main>
+</body>
+</html>

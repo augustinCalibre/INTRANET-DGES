@@ -15,5 +15,9 @@ urlpatterns = [
     path("meetings/", include(("meetings.urls", "meetings"), namespace="meetings")),
     path("diplomes/", include(("diplomas.urls", "diplomas"), namespace="diplomas")),
     path("courriers/", include(("courriers.urls", "courriers"), namespace="courriers")),
+    path(
+        "exploitation/",
+        include(("exploitation.urls", "exploitation"), namespace="exploitation"),
+    ),
     path("", include(("core.urls", "core"), namespace="core")),
 ]

@@ -62,6 +62,12 @@ services:
     volumes:
       - static_data:/app/staticfiles
       - media_data:/app/media
+      # Lecture seule : l'onglet « Sauvegarde et restauration » liste les
+      # archives et permet de les télécharger. Il n'écrit jamais dedans.
+      - ${BACKUP_DIR:-./sauvegardes}:/sauvegardes:ro
+      # Canal de commande vers le service backup : l'application y dépose ses
+      # demandes et y lit l'avancement. Voir docker/backup/planificateur.sh.
+      - backup_control:/controle
     expose:
       - "8000"
     networks:
@@ -71,7 +77,8 @@ services:
   # Même image que la base : pg_dump doit être de la même version majeure que
   # le serveur, sinon le dump est refusé.
   backup:
-    image: postgres:16-alpine
+    build:
+      context: ./docker/backup
     container_name: intranet-dges-backup
     restart: unless-stopped
     env_file:
@@ -80,16 +87,17 @@ services:
       POSTGRES_HOST: db
       NEXTCLOUD_POSTGRES_HOST: nextcloud-db
       BACKUP_ROOT: /sauvegardes
+      BACKUP_CONTROL_DIR: /controle
       TZ: ${DJANGO_TIME_ZONE:-Africa/Abidjan}
-    entrypoint: ["/usr/local/bin/planificateur.sh"]
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./docker/backup/sauvegarde.sh:/usr/local/bin/sauvegarde.sh:ro
-      - ./docker/backup/planificateur.sh:/usr/local/bin/planificateur.sh:ro
-      - media_data:/media-intranet:ro
+      # Les pièces jointes sont montées en écriture : la restauration doit
+      # pouvoir les remettre en place, pas seulement les lire.
+      - media_data:/media-intranet
       - nextcloud_data:/nextcloud-data:ro
+      - backup_control:/controle
       # Le fichier .env et les certificats ne sont pas dans Git : sans eux, une
       # reconstruction sur une machine neuve part de zéro.
       - ./:/projet:ro
@@ -194,6 +202,7 @@ volumes:
   nextcloud_custom_apps:
   nextcloud_config:
   nextcloud_data:
+  backup_control:
 
 networks:
   intranet_dges_network:

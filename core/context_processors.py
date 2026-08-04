@@ -32,6 +32,7 @@ def application_context(request):
     can_manage_diplomas = False
     can_access_courriers = False
     can_view_accounts = False
+    can_manage_backups = False
     lots_awaiting_signature_count = 0
     courriers_a_traiter_count = 0
 
@@ -40,6 +41,7 @@ def application_context(request):
         from core.permissions import can_manage_documents as user_can_manage_documents
         from core.permissions import can_access_diplomas as user_can_manage_diplomas
         from core.permissions import can_manage_meetings, can_validate_as_dg
+        from core.permissions import can_manage_backups as user_can_manage_backups
         from core.permissions import can_view_accounts as user_can_view_accounts
         from core.permissions import can_manage_visitors as user_can_manage_visitors
         from core.permissions import can_access_courriers as user_can_access_courriers
@@ -67,6 +69,7 @@ def application_context(request):
             lots_awaiting_signature_count = get_lots_awaiting_signature(request.user).count()
 
         can_view_accounts = user_can_view_accounts(request.user)
+        can_manage_backups = user_can_manage_backups(request.user)
         can_access_courriers = user_can_access_courriers(request.user)
         if can_access_courriers:
             # Le badge compte ce qui attend une action de cet utilisateur :
@@ -96,6 +99,7 @@ def application_context(request):
         "can_manage_diplomas": can_manage_diplomas,
         "can_access_courriers": can_access_courriers,
         "can_view_accounts": can_view_accounts,
+        "can_manage_backups": can_manage_backups,
         "lots_awaiting_signature_count": lots_awaiting_signature_count,
         "courriers_a_traiter_count": courriers_a_traiter_count,
     }

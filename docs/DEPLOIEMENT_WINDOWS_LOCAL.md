@@ -215,7 +215,8 @@ docker compose up -d backup
 docker compose exec backup /usr/local/bin/sauvegarde.sh
 ```
 
-Les fichiers doivent apparaitre dans `E:\sauvegardes-intranet-dges\AAAA-MM-JJ_HHhMM\`.
+Une archive `sauvegarde_AAAA-MM-JJ_HHhMM.zip` doit apparaitre dans
+`E:\sauvegardes-intranet-dges\`. Un double-clic dans l'Explorateur en montre le contenu.
 
 ### Le piege du disque que Docker ne voit pas
 
@@ -254,13 +255,16 @@ plus spacieux passerait au travers. Faites la verification.
 docker compose logs backup       # journal et heure de la prochaine sauvegarde
 ```
 
-Un dossier suffixe `_INCOMPLETE` signale une sauvegarde interrompue. Ne vous y fiez pas :
-une sauvegarde partielle que l'on croit valable est plus dangereuse qu'une absence de
-sauvegarde.
+Plus simplement, l'onglet **Sauvegarde et restauration** de l'intranet, accessible au
+compte administrateur, liste les archives, l'espace restant sur le disque et l'historique
+des operations.
+
+Une archive presente est toujours complete : elle est assemblee a cote puis deplacee d'un
+bloc. Une sauvegarde interrompue ne laisse rien derriere elle, et le journal la signale.
 
 **Testez la restauration au moins une fois**, sur une base d'essai, sans toucher a la base
-vivante. La procedure complete figure dans le `README.md`, section « Sauvegarde
-automatique ». Une sauvegarde jamais restauree n'est pas une sauvegarde.
+vivante. La procedure figure dans [RESTAURATION.md](RESTAURATION.md), cas 1. Une
+sauvegarde jamais restauree n'est pas une sauvegarde.
 
 ### Copie hors machine
 

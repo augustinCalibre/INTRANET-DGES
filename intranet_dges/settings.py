@@ -70,9 +70,14 @@ INSTALLED_APPS = [
     "meetings",
     "diplomas",
     "courriers",
+    "exploitation",
 ]
 
 MIDDLEWARE = [
+    # En tete, et volontairement : pendant une restauration la base est
+    # detruite puis rechargee. Tout intergiciel place avant celui-ci qui
+    # toucherait a la session ou a l'utilisateur echouerait.
+    "core.middleware.MaintenanceModeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -199,10 +204,23 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Repere de version des fichiers statiques. Nginx les met en cache une semaine :
 # incrementer cette valeur a chaque livraison force les navigateurs a recharger
 # CSS et JS, sans quoi les agents continuent de voir l'ancienne interface.
-ASSET_VERSION = os.getenv("ASSET_VERSION", "20260730-3")
+ASSET_VERSION = os.getenv("ASSET_VERSION", "20260804-1")
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# --- Sauvegarde et restauration ---------------------------------------
+#
+# Deux dossiers partages avec le service `backup` :
+#   - les archives, montees en lecture seule : l'application les liste et les
+#     propose au telechargement, elle n'y ecrit jamais ;
+#   - le canal de controle, ou elle depose ses demandes et lit l'avancement.
+#
+# Hors conteneur — developpement, tests — ces chemins n'existent pas. Le code
+# le prevoit : l'onglet affiche alors une liste vide plutot que de refuser de
+# demarrer.
+BACKUP_ARCHIVES_DIR = os.getenv("BACKUP_ARCHIVES_DIR", "/sauvegardes")
+BACKUP_CONTROL_DIR = os.getenv("BACKUP_CONTROL_DIR", "/controle")
 
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "dashboard:home"

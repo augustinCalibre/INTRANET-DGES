@@ -551,7 +551,8 @@ ne change.
 
 ### Ce qui est sauvegardé
 
-Chaque nuit, dans un sous-dossier horodaté **créé automatiquement** :
+Chaque nuit, **une archive unique** `sauvegarde_AAAA-MM-JJ_HHhMM.zip`, qu'un poste
+Windows ouvre d'un double-clic :
 
 | Fichier | Contenu |
 |---|---|
@@ -562,6 +563,11 @@ Chaque nuit, dans un sous-dossier horodaté **créé automatiquement** :
 | `configuration/` | `.env`, certificats TLS, `config.php` de Nextcloud |
 | `MANIFESTE.txt` | contenu, tailles et commandes de restauration |
 
+L'archive est assemblée dans un dossier de travail caché puis déplacée d'un bloc à sa
+place définitive. Une archive visible est donc toujours complète, même si la machine
+s'éteint pendant l'opération — la question « celle-ci est-elle utilisable ? » ne se pose
+pas.
+
 Le dossier `configuration` mérite une explication : les dumps ne suffisent pas à repartir
 d'une machine neuve. Il y faut les mots de passe des bases, que porte le `.env`, et
 surtout le `config.php` de Nextcloud — il contient `passwordsalt` et `secret`, sans
@@ -569,13 +575,42 @@ lesquels la base Nextcloud restaurée est inexploitable, plus aucun mot de passe
 vérifiant. **Ces fichiers contiennent des secrets en clair** : le disque de sauvegarde
 doit être gardé comme un classeur du personnel.
 
-Une sauvegarde interrompue est renommée avec le suffixe **`_INCOMPLETE`** : une sauvegarde
-partielle qu'on croit valable est plus dangereuse qu'une absence de sauvegarde.
+### L'onglet « Sauvegarde et restauration »
+
+L'administrateur — et lui seul — dispose dans l'intranet d'un onglet qui liste les
+sauvegardes, permet d'en déclencher une, d'en télécharger une, et d'en **restaurer** une.
+
+Restaurer depuis cette page remet en place **la base et les pièces jointes**. La
+messagerie n'y est pas incluse : sa restauration suppose d'arrêter les conteneurs
+Nextcloud, ce qu'une application ne peut pas faire depuis l'intérieur, et une messagerie
+à moitié restaurée est pire qu'une messagerie intacte. Sa procédure reste dans
+[docs/RESTAURATION.md](docs/RESTAURATION.md).
+
+Trois garde-fous encadrent le bouton :
+
+1. la capacité est réservée au rôle **Administrateur** — le Directeur Général en est
+   écarté comme les autres : restaurer est un acte d'exploitation informatique, pas une
+   décision administrative ;
+2. il faut recopier le mot `RESTAURER` — un « Êtes-vous sûr ? » se clique sans lire ;
+3. **une sauvegarde de l'état actuel est prise avant toute destruction**, et son échec
+   annule la restauration. Se tromper d'archive reste rattrapable.
+
+Pendant l'opération, l'application sert une page d'attente qui se rafraîchit seule, puis
+rouvre d'elle-même. Cette page ne touche ni à la base ni aux sessions — elles n'existent
+pas à cet instant.
+
+**Comment l'application commande le service.** Elle ne sauvegarde ni ne restaure
+elle-même : elle n'a pas `pg_dump`, et surtout elle ne peut pas détruire la base à
+laquelle elle est connectée. Elle dépose donc un fichier de demande dans un volume
+partagé, que le service `backup` exécute et dont il rend compte dans un fichier d'état.
+Ce détour vaut mieux que l'alternative — donner au conteneur web l'accès au socket
+Docker — qui reviendrait à confier à une application web le pouvoir d'arrêter et de
+recréer n'importe quel conteneur de la machine.
 
 ### Une sauvegarde manquée est rattrapée
 
 Le planificateur ne compte pas le temps restant jusqu'à l'heure fixée : il **compare la
-date réelle** toutes les cinq minutes, et sauvegarde dès qu'un nouveau jour est entamé et
+date réelle** toutes les cinq secondes, et sauvegarde dès qu'un nouveau jour est entamé et
 que l'heure cible est passée.
 
 La distinction est loin d'être théorique. Un simple « dormir jusqu'à 1h00 » échoue dès que
@@ -634,36 +669,33 @@ docker compose exec backup /usr/local/bin/sauvegarde.sh # sauvegarde immédiate
 
 ### Restaurer
 
-La procédure complète, cas par cas — donnée effacée par erreur, base corrompue, pièces
+**Le plus simple : l'onglet « Sauvegarde et restauration » de l'intranet.** Choisissez
+une sauvegarde, cliquez sur Restaurer, recopiez le mot demandé. L'application se ferme le
+temps de l'opération et rouvre seule.
+
+La procédure manuelle, cas par cas — donnée effacée par erreur, base corrompue, pièces
 jointes perdues, messagerie perdue, machine morte — est dans
 **[docs/RESTAURATION.md](docs/RESTAURATION.md)**. Elle est écrite pour être suivie dans
 l'urgence, et ses commandes ont été exécutées telles quelles.
-
-Le cas le plus courant, la base de l'application :
-
-```powershell
-docker compose stop web
-docker compose exec -T db psql -U intranet_dges_user -d postgres -c "DROP DATABASE intranet_dges;"
-docker compose exec -T db psql -U intranet_dges_user -d postgres -c "CREATE DATABASE intranet_dges;"
-docker compose exec -T backup sh -c 'gunzip -c /sauvegardes/2026-08-04_01h00/intranet-postgres.sql.gz | PGPASSWORD="$POSTGRES_PASSWORD" psql -q -h db -U "$POSTGRES_USER" -d intranet_dges'
-docker compose start web
-```
-
-La décompression et le chargement passent par le conteneur `backup`, qui dispose déjà de
-`psql` et des mots de passe : rien à installer sur Windows.
 
 **Essayez la restauration sans rien casser** — restaurez dans une base à côté et comparez
 les compteurs, sans toucher à la base vivante :
 
 ```powershell
+docker compose exec -T backup sh -c 'mkdir -p /sauvegardes/.extraction && unzip -q -o /sauvegardes/sauvegarde_2026-08-04_01h00.zip -d /sauvegardes/.extraction'
 docker compose exec -T db psql -U intranet_dges_user -d postgres -c "CREATE DATABASE recuperation;"
-docker compose exec -T backup sh -c 'gunzip -c /sauvegardes/2026-08-04_01h00/intranet-postgres.sql.gz | PGPASSWORD="$POSTGRES_PASSWORD" psql -q -h db -U "$POSTGRES_USER" -d recuperation'
+docker compose exec -T backup sh -c 'gunzip -c /sauvegardes/.extraction/intranet-postgres.sql.gz | PGPASSWORD="$POSTGRES_PASSWORD" psql -q -h db -U "$POSTGRES_USER" -d recuperation'
 docker compose exec -T db psql -U intranet_dges_user -d recuperation -c "select count(*) from courriers_courrier;"
 docker compose exec -T db psql -U intranet_dges_user -d postgres -c "DROP DATABASE recuperation;"
+docker compose exec -T backup rm -rf /sauvegardes/.extraction
 ```
 
-Cette procédure a été exécutée depuis le disque de sauvegarde : la base restaurée
-présentait exactement les mêmes volumes que la base vivante, contenu compris.
+L'extraction et le chargement passent par le conteneur `backup`, qui dispose déjà d'`unzip`,
+de `psql` et des mots de passe : rien à installer sur Windows.
+
+Cette procédure a été exécutée depuis le disque de sauvegarde, et la restauration
+complète a été vérifiée de bout en bout : une donnée créée après la sauvegarde avait bien
+disparu après restauration, le reste étant intact.
 
 ## Journalisation et historique des connexions
 

@@ -30,6 +30,7 @@ from accounts.constants import (
     ROLES_FICHE_DG,
     ROLES_GESTION_COMPTES,
     ROLES_PLANNING,
+    ROLES_SAUVEGARDE,
     ROLES_TRANSMISSION_DG,
     ROLES_VALIDATION_DG,
     ROLES_VISITEURS,
@@ -228,6 +229,11 @@ def can_manage_accounts(user):
 def can_view_accounts(user):
     """Consulter l'annuaire des comptes sans pouvoir le modifier."""
     return _in(user, ROLES_CONSULTATION_COMPTES)
+
+
+def can_manage_backups(user):
+    """Declencher une sauvegarde et restaurer une archive anterieure."""
+    return _in(user, ROLES_SAUVEGARDE)
 
 
 # ------------------------------------------------------ compatibilite

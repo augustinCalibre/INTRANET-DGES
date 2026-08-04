@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="{% static 'css/diplomas.css' %}?v={{ asset_version }}">
     <link rel="stylesheet" href="{% static 'css/dges-ui.css' %}?v={{ asset_version }}">
     <link rel="stylesheet" href="{% static 'css/dashboard-viz.css' %}?v={{ asset_version }}">
+    <link rel="stylesheet" href="{% static 'css/exploitation.css' %}?v={{ asset_version }}">
 </head>
 <body class="bg-app">
     {% if request.user.is_authenticated %}
@@ -84,6 +85,9 @@
                     {% endif %}
                     {% if can_view_accounts %}
                         <a class="nav-link {% if request.resolver_match.namespace == 'accounts' and request.resolver_match.url_name != 'login' %}active{% endif %}" href="{% url 'accounts:access_panel' %}">Accès et comptes</a>
+                    {% endif %}
+                    {% if can_manage_backups %}
+                        <a class="nav-link {% if request.resolver_match.namespace == 'exploitation' %}active{% endif %}" href="{% url 'exploitation:sauvegardes' %}">Sauvegarde et restauration</a>
                     {% endif %}
                     {% if request.user.is_staff %}
                         <a class="nav-link" href="{% url 'admin:index' %}">Admin Django</a>
@@ -166,5 +170,11 @@
     <script src="{% static 'vendor/flatpickr/flatpickr.min.js' %}"></script>
     <script src="{% static 'vendor/flatpickr/fr.js' %}"></script>
     <script src="{% static 'js/app.js' %}?v={{ asset_version }}"></script>
+    {% comment %}
+        Scripts propres a une page, charges apres Bootstrap : certaines vues
+        s'appuient sur ses composants, qui doivent exister au moment ou le
+        script s'execute.
+    {% endcomment %}
+    {% block scripts %}{% endblock %}
 </body>
 </html>
