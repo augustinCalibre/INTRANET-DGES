@@ -8,9 +8,27 @@
 # Ce fichier garantit que le serveur reçoit les scripts tels qu'ils doivent
 # être, quel que soit le réglage core.autocrlf du poste qui clone.
 
+# Tout le code s'exécute dans des conteneurs Linux : le dépôt est en LF, et
+# les postes Windows reçoivent du LF. Sans cette règle, un fichier enregistré
+# en CRLF par un éditeur Windows apparaît intégralement modifié alors que son
+# contenu est identique — Git signale alors des dizaines de fichiers modifiés
+# qui masquent les vraies modifications.
+* text=auto eol=lf
+
 *.sh text eol=lf
 docker/entrypoint.sh text eol=lf
 docker/backup/*.sh text eol=lf
 
-# Les scripts PowerShell restent en CRLF, convention Windows.
+# Les scripts PowerShell restent en CRLF, convention Windows. Cette ligne vient
+# après la règle générale : en cas de conflit, la dernière l'emporte.
 *.ps1 text eol=crlf
+
+# Fichiers binaires : aucune conversion, sous peine de corruption.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
