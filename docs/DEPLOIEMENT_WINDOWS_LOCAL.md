@@ -217,6 +217,37 @@ docker compose exec backup /usr/local/bin/sauvegarde.sh
 
 Les fichiers doivent apparaitre dans `E:\sauvegardes-intranet-dges\AAAA-MM-JJ_HHhMM\`.
 
+### Le piege du disque que Docker ne voit pas
+
+Quand Docker ne sait pas resoudre un disque de l'hote, il ne refuse pas : il cree
+silencieusement un dossier du meme nom **dans sa propre machine virtuelle**. La
+sauvegarde s'execute, annonce sa reussite, et rien n'arrive sur le disque. Le cas se
+produit dans deux situations :
+
+- le disque n'est pas en **NTFS** — un disque externe livre en exFAT n'est pas monte par
+  WSL 2 ; reformatez-le en NTFS ;
+- le disque a ete **branche apres le demarrage de Docker** — WSL 2 ne le montera pas de
+  lui-meme ; redemarrez Docker Desktop.
+
+Verification, avant de faire confiance a la premiere sauvegarde :
+
+```powershell
+docker run --rm -v "E:/sauvegardes-intranet-dges:/test" alpine df -h /test
+```
+
+La taille annoncee doit etre celle du disque. Quelques centaines de megaoctets signalent
+le dossier fantome. Dans ce cas, supprimez-le avant de recommencer, sinon il continuera de
+masquer le vrai point de montage :
+
+```powershell
+wsl --shutdown
+wsl -d docker-desktop rmdir /mnt/host/e
+```
+
+Le script de sauvegarde refuse desormais de demarrer sous 512 Mo libres
+(`BACKUP_MIN_FREE_KB`), ce qui bloque le cas le plus courant — mais un disque fantome
+plus spacieux passerait au travers. Faites la verification.
+
 ### Controles a faire regulierement
 
 ```powershell
