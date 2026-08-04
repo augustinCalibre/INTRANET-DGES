@@ -558,7 +558,16 @@ Chaque nuit, dans un sous-dossier horodaté **créé automatiquement** :
 | `intranet-postgres.sql.gz` | base de l'application |
 | `nextcloud-postgres.sql.gz` | base de la messagerie |
 | `media.tar.gz` | pièces jointes : documents, courriers, diplômes |
+| `nextcloud-data.tar.gz` | fichiers déposés dans la messagerie |
+| `configuration/` | `.env`, certificats TLS, `config.php` de Nextcloud |
 | `MANIFESTE.txt` | contenu, tailles et commandes de restauration |
+
+Le dossier `configuration` mérite une explication : les dumps ne suffisent pas à repartir
+d'une machine neuve. Il y faut les mots de passe des bases, que porte le `.env`, et
+surtout le `config.php` de Nextcloud — il contient `passwordsalt` et `secret`, sans
+lesquels la base Nextcloud restaurée est inexploitable, plus aucun mot de passe ne se
+vérifiant. **Ces fichiers contiennent des secrets en clair** : le disque de sauvegarde
+doit être gardé comme un classeur du personnel.
 
 Une sauvegarde interrompue est renommée avec le suffixe **`_INCOMPLETE`** : une sauvegarde
 partielle qu'on croit valable est plus dangereuse qu'une absence de sauvegarde.
@@ -597,10 +606,24 @@ machine, et empêche une seconde sauvegarde le même jour.
 base ne protège de rien en cas de panne matérielle.
 
 ```env
-BACKUP_DIR=D:/sauvegardes-intranet-dges
+BACKUP_DIR=E:/sauvegardes-intranet-dges
 ```
 
 Si Docker ne parvient pas à créer le dossier, créez-le une fois à la main.
+
+**Vérifiez que Docker atteint réellement ce disque.** Quand il ne sait pas le résoudre —
+disque en exFAT, que WSL 2 ne monte pas, ou disque branché après le démarrage de Docker —
+il crée silencieusement un dossier du même nom dans sa propre machine virtuelle : la
+sauvegarde réussit et n'arrive jamais sur le disque.
+
+```powershell
+docker run --rm -v "E:/sauvegardes-intranet-dges:/test" alpine df -h /test
+```
+
+La taille affichée doit être celle du disque. Le script refuse de démarrer sous 512 Mo
+libres (`BACKUP_MIN_FREE_KB`), ce qui bloque le cas courant, mais faites la vérification
+après chaque rebranchement. La marche à suivre en cas de dossier fantôme est dans
+[docs/DEPLOIEMENT_WINDOWS_LOCAL.md](docs/DEPLOIEMENT_WINDOWS_LOCAL.md).
 
 ### Vérifier et déclencher à la main
 
@@ -611,33 +634,36 @@ docker compose exec backup /usr/local/bin/sauvegarde.sh # sauvegarde immédiate
 
 ### Restaurer
 
-**La base de l'application :**
+La procédure complète, cas par cas — donnée effacée par erreur, base corrompue, pièces
+jointes perdues, messagerie perdue, machine morte — est dans
+**[docs/RESTAURATION.md](docs/RESTAURATION.md)**. Elle est écrite pour être suivie dans
+l'urgence, et ses commandes ont été exécutées telles quelles.
+
+Le cas le plus courant, la base de l'application :
 
 ```powershell
+docker compose stop web
 docker compose exec -T db psql -U intranet_dges_user -d postgres -c "DROP DATABASE intranet_dges;"
 docker compose exec -T db psql -U intranet_dges_user -d postgres -c "CREATE DATABASE intranet_dges;"
-gzip -dc sauvegardes\2026-08-03_21h35\intranet-postgres.sql.gz | docker compose exec -T db psql -U intranet_dges_user -d intranet_dges
-docker compose restart web
+docker compose exec -T backup sh -c 'gunzip -c /sauvegardes/2026-08-04_01h00/intranet-postgres.sql.gz | PGPASSWORD="$POSTGRES_PASSWORD" psql -q -h db -U "$POSTGRES_USER" -d intranet_dges'
+docker compose start web
 ```
 
-**Les pièces jointes :**
+La décompression et le chargement passent par le conteneur `backup`, qui dispose déjà de
+`psql` et des mots de passe : rien à installer sur Windows.
+
+**Essayez la restauration sans rien casser** — restaurez dans une base à côté et comparez
+les compteurs, sans toucher à la base vivante :
 
 ```powershell
-docker run --rm -v v1_media_data:/media -v "${PWD}\sauvegardes\2026-08-03_21h35:/sauvegarde" alpine sh -c "cd /media && tar -xzf /sauvegarde/media.tar.gz"
+docker compose exec -T db psql -U intranet_dges_user -d postgres -c "CREATE DATABASE recuperation;"
+docker compose exec -T backup sh -c 'gunzip -c /sauvegardes/2026-08-04_01h00/intranet-postgres.sql.gz | PGPASSWORD="$POSTGRES_PASSWORD" psql -q -h db -U "$POSTGRES_USER" -d recuperation'
+docker compose exec -T db psql -U intranet_dges_user -d recuperation -c "select count(*) from courriers_courrier;"
+docker compose exec -T db psql -U intranet_dges_user -d postgres -c "DROP DATABASE recuperation;"
 ```
 
-**Essayez la restauration sans rien casser** — restaurez dans une base d'essai et comparez
-les compteurs :
-
-```powershell
-docker compose exec -T db psql -U intranet_dges_user -d postgres -c "CREATE DATABASE essai_restauration;"
-gzip -dc sauvegardes\...\intranet-postgres.sql.gz | docker compose exec -T db psql -U intranet_dges_user -d essai_restauration
-docker compose exec -T db psql -U intranet_dges_user -d essai_restauration -c "select count(*) from courriers_courrier;"
-docker compose exec -T db psql -U intranet_dges_user -d postgres -c "DROP DATABASE essai_restauration;"
-```
-
-Cette procédure a été exécutée : la base restaurée présentait exactement les mêmes
-volumes que la base vivante, contenu compris.
+Cette procédure a été exécutée depuis le disque de sauvegarde : la base restaurée
+présentait exactement les mêmes volumes que la base vivante, contenu compris.
 
 ## Journalisation et historique des connexions
 

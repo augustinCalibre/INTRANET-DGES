@@ -103,6 +103,38 @@ if [ "$INCLURE_FICHIERS_NEXTCLOUD" = "1" ] && [ -d /nextcloud-data ]; then
         || echec "archivage des fichiers Nextcloud"
 fi
 
+# --- Configuration absente de Git --------------------------------------
+#
+# Les dumps et les pieces jointes ne suffisent pas a repartir d'une machine
+# neuve. Il y manque le fichier .env — mots de passe des bases, cle secrete
+# Django — les certificats TLS, et surtout le config.php de Nextcloud : il
+# porte « passwordsalt » et « secret », sans lesquels la base Nextcloud
+# restauree est inexploitable, les mots de passe ne se verifiant plus.
+journal "Configuration (.env, certificats, config Nextcloud)"
+mkdir -p "$DESTINATION/configuration"
+
+if [ -f /projet/.env ]; then
+    cp /projet/.env "$DESTINATION/configuration/env.txt" \
+        || echec "copie du fichier .env"
+else
+    journal "AVERTISSEMENT : fichier .env introuvable, non sauvegardé"
+fi
+
+if [ -d /projet/docker/nginx/certs ]; then
+    tar -czf "$DESTINATION/configuration/certificats.tar.gz" \
+        -C /projet/docker/nginx/certs . 2>/dev/null \
+        || journal "AVERTISSEMENT : certificats non archivés (ils sont régénérables)"
+fi
+
+if [ -d /nextcloud-config ]; then
+    tar -czf "$DESTINATION/configuration/nextcloud-config.tar.gz" \
+        -C /nextcloud-config . \
+        || echec "archivage de la configuration Nextcloud"
+fi
+
+# Ces fichiers portent des mots de passe en clair : on restreint leur lecture.
+chmod -R go-rwx "$DESTINATION/configuration" 2>/dev/null || true
+
 # --- Manifeste ---------------------------------------------------------
 {
     echo "Sauvegarde de l'intranet DGES"
@@ -113,16 +145,24 @@ fi
     echo "Contenu :"
     ls -lh "$DESTINATION" | tail -n +2 | awk '{printf "  %-32s %s\n", $9, $5}'
     echo
-    echo "Restauration de la base de l'intranet :"
+    echo "PROCÉDURE COMPLÈTE : docs/RESTAURATION.md dans le dépôt du projet."
+    echo "Le dossier « configuration » contient le .env et le config.php de"
+    echo "Nextcloud : ils portent des mots de passe en clair."
+    echo
+    echo "Restauration rapide de la base de l'intranet :"
+    echo "  docker compose stop web"
+    echo "  docker compose exec -T db psql -U $POSTGRES_USER -d postgres \\"
+    echo "    -c 'DROP DATABASE $POSTGRES_DB;' -c 'CREATE DATABASE $POSTGRES_DB;'"
     echo "  gunzip -c intranet-postgres.sql.gz | \\"
     echo "    docker compose exec -T db psql -U $POSTGRES_USER -d $POSTGRES_DB"
+    echo "  docker compose start web"
     echo
     echo "Restauration des pièces jointes :"
     echo "  docker run --rm -v v1_media_data:/media -v \"\$PWD\":/sauvegarde alpine \\"
     echo "    sh -c 'cd /media && tar -xzf /sauvegarde/media.tar.gz'"
     echo
     echo "Une restauration jamais essayée n'est pas une restauration :"
-    echo "testez-la au moins une fois sur une base de essai."
+    echo "testez-la au moins une fois sur une base d'essai."
 } > "$DESTINATION/MANIFESTE.txt"
 
 TAILLE="$(du -sh "$DESTINATION" | cut -f1)"

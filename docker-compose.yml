@@ -90,6 +90,12 @@ services:
       - ./docker/backup/planificateur.sh:/usr/local/bin/planificateur.sh:ro
       - media_data:/media-intranet:ro
       - nextcloud_data:/nextcloud-data:ro
+      # Le fichier .env et les certificats ne sont pas dans Git : sans eux, une
+      # reconstruction sur une machine neuve part de zéro.
+      - ./:/projet:ro
+      # config.php de Nextcloud : il porte « passwordsalt » et « secret ». Sans
+      # ce fichier, la base Nextcloud restaurée est inexploitable.
+      - nextcloud_config:/nextcloud-config:ro
       # Destination sur la machine hôte. Le dossier est créé automatiquement.
       - ${BACKUP_DIR:-./sauvegardes}:/sauvegardes
     networks:
