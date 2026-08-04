@@ -770,3 +770,144 @@ class FicheAnalyseTests(TestCase):
         self.client.force_login(self.agent_diplome)
         response = self.client.get(reverse("tasks:edit", args=[tache.pk]))
         self.assertEqual(response.status_code, 200)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class NatureDocumentTests(TestCase):
+    """La nature du document, distincte du sens.
+
+    Le sens dit s'il entre ou s'il sort et fonde les registres arrivee et
+    depart ; la nature dit de quel document il s'agit. Melanger les deux dans
+    un seul champ aurait fait perdre l'un des deux renseignements.
+    """
+
+    def setUp(self):
+        self.agent_courrier = make_user("courrier", ROLE_COURRIER)
+        self.client.force_login(self.agent_courrier)
+
+    def test_les_courriers_existants_sont_des_courriers_simples(self):
+        courrier = Courrier.objects.create(
+            objet="Demande de stage",
+            expediteur="Université de Bouaké",
+            cree_par=self.agent_courrier,
+        )
+        self.assertEqual(courrier.nature, Courrier.Nature.COURRIER)
+
+    def test_les_quatre_natures_sont_disponibles(self):
+        self.assertEqual(
+            [valeur for valeur, _ in Courrier.Nature.choices],
+            ["courrier", "autorisation", "note", "ordre_mission"],
+        )
+
+    def test_nature_et_sens_sont_independants(self):
+        """Un ordre de mission peut entrer comme sortir."""
+        entrant = Courrier.objects.create(
+            objet="Ordre de mission reçu",
+            expediteur="Cabinet du Ministre",
+            sens=Courrier.Sens.ENTRANT,
+            nature=Courrier.Nature.ORDRE_MISSION,
+            cree_par=self.agent_courrier,
+        )
+        sortant = Courrier.objects.create(
+            objet="Ordre de mission émis",
+            expediteur="DGES",
+            sens=Courrier.Sens.SORTANT,
+            nature=Courrier.Nature.ORDRE_MISSION,
+            cree_par=self.agent_courrier,
+        )
+        self.assertEqual(
+            Courrier.objects.filter(nature=Courrier.Nature.ORDRE_MISSION).count(), 2
+        )
+        self.assertEqual(Courrier.objects.filter(sens=Courrier.Sens.ENTRANT).count(), 1)
+        self.assertNotEqual(entrant.sens, sortant.sens)
+
+    def test_le_registre_se_filtre_par_nature(self):
+        Courrier.objects.create(
+            objet="Autorisation d'absence",
+            expediteur="Service Administratif",
+            nature=Courrier.Nature.AUTORISATION,
+            cree_par=self.agent_courrier,
+        )
+        Courrier.objects.create(
+            objet="Courrier ordinaire",
+            expediteur="Université de Korhogo",
+            cree_par=self.agent_courrier,
+        )
+
+        reponse = self.client.get(reverse("courriers:list"), {"nature": "autorisation"})
+        self.assertEqual(reponse.status_code, 200)
+        # L'apostrophe est échappée dans la page rendue.
+        self.assertContains(reponse, "Autorisation d&#x27;absence")
+        self.assertNotContains(reponse, "Courrier ordinaire")
+
+    def test_la_nature_figure_dans_l_export(self):
+        Courrier.objects.create(
+            objet="Note de service",
+            expediteur="DGES",
+            nature=Courrier.Nature.NOTE,
+            cree_par=self.agent_courrier,
+        )
+        reponse = self.client.get(reverse("courriers:export"))
+        contenu = reponse.content.decode("utf-8")
+        self.assertIn("Nature", contenu)
+        self.assertIn("Note", contenu)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class DechargeTests(TestCase):
+    """Décharge remise au porteur : preuve de dépôt du courrier."""
+
+    def setUp(self):
+        self.service = Service.objects.create(nom="Service Courrier", actif=True)
+        self.agent_courrier = make_user("courrier", ROLE_COURRIER, self.service)
+        self.agent_isole = make_user("isole", ROLE_AGENT)
+        self.courrier = Courrier.objects.create(
+            objet="Demande d'équivalence de diplôme",
+            expediteur="Université Félix Houphouët-Boigny",
+            numero_arrivee="A-2026-114",
+            nature=Courrier.Nature.AUTORISATION,
+            receptionne_par=self.agent_courrier,
+            cree_par=self.agent_courrier,
+        )
+
+    def test_le_numero_de_decharge_derive_de_la_reference(self):
+        """Deux impressions du même courrier portent le même numéro."""
+        self.courrier.reference = "COUR-2026-004"
+        self.assertEqual(self.courrier.numero_decharge, "DECH-2026-004")
+
+    def test_numero_de_decharge_sans_prefixe_attendu(self):
+        self.courrier.reference = "X99"
+        self.assertEqual(self.courrier.numero_decharge, "DECH-X99")
+
+    def test_la_decharge_porte_les_identifiants_du_courrier(self):
+        self.client.force_login(self.agent_courrier)
+        reponse = self.client.get(reverse("courriers:decharge", args=[self.courrier.pk]))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, self.courrier.numero_decharge)
+        self.assertContains(reponse, self.courrier.reference)
+        self.assertContains(reponse, "Demande d&#x27;équivalence de diplôme")
+        self.assertContains(reponse, "A-2026-114")
+        self.assertContains(reponse, "Autorisation")
+
+    def test_la_decharge_porte_le_receptionnaire_connu(self):
+        self.agent_courrier.first_name = "Ama"
+        self.agent_courrier.last_name = "Kouadio"
+        self.agent_courrier.save()
+        self.client.force_login(self.agent_courrier)
+        reponse = self.client.get(reverse("courriers:decharge", args=[self.courrier.pk]))
+        self.assertContains(reponse, "Ama Kouadio")
+        self.assertContains(reponse, "Service Courrier")
+
+    def test_la_decharge_reste_imprimable_sans_receptionnaire(self):
+        """Un courrier saisi sans réceptionnaire s'imprime, à remplir au stylo."""
+        self.courrier.receptionne_par = None
+        self.courrier.save(update_fields=["receptionne_par"])
+        self.client.force_login(self.agent_courrier)
+        reponse = self.client.get(reverse("courriers:decharge", args=[self.courrier.pk]))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, "Nom et prénoms du réceptionnaire")
+
+    def test_un_agent_sans_acces_n_obtient_pas_la_decharge(self):
+        self.client.force_login(self.agent_isole)
+        reponse = self.client.get(reverse("courriers:decharge", args=[self.courrier.pk]))
+        self.assertIn(reponse.status_code, (403, 404))

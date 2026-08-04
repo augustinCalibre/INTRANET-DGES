@@ -18,11 +18,12 @@ class CourrierAdmin(admin.ModelAdmin):
         "objet",
         "expediteur",
         "sens",
+        "nature",
         "priorite",
         "statut",
         "date_reception",
     )
-    list_filter = ("statut", "sens", "priorite", "date_reception", "destinataire_service")
+    list_filter = ("statut", "sens", "nature", "priorite", "date_reception", "destinataire_service")
     search_fields = ("reference", "objet", "expediteur", "observation", "instruction_dg")
     autocomplete_fields = (
         "destinataire_service",

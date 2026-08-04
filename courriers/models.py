@@ -61,6 +61,16 @@ class Courrier(models.Model):
         ENTRANT = "entrant", "Entrant"
         SORTANT = "sortant", "Sortant"
 
+    # Nature du document, distincte du sens. Les deux repondent a des
+    # questions differentes : le sens dit s'il entre ou s'il sort, et fonde
+    # les registres arrivee et depart ; la nature dit de quel document il
+    # s'agit. Un ordre de mission peut entrer comme sortir.
+    class Nature(models.TextChoices):
+        COURRIER = "courrier", "Courrier simple"
+        AUTORISATION = "autorisation", "Autorisation"
+        NOTE = "note", "Note"
+        ORDRE_MISSION = "ordre_mission", "Ordre de mission"
+
     class Priorite(models.TextChoices):
         NORMALE = "normale", "Normale"
         URGENTE = "urgente", "Urgente"
@@ -93,6 +103,12 @@ class Courrier(models.Model):
         help_text="Laisser vide pour une attribution automatique.",
     )
     sens = models.CharField(max_length=20, choices=Sens.choices, default=Sens.ENTRANT)
+    nature = models.CharField(
+        max_length=20,
+        choices=Nature.choices,
+        default=Nature.COURRIER,
+        verbose_name="Nature du document",
+    )
     numero_arrivee = models.CharField(
         max_length=60,
         blank=True,
@@ -270,6 +286,19 @@ class Courrier(models.Model):
     @property
     def nom_fichier(self):
         return Path(self.fichier.name).name if self.fichier else ""
+
+    @property
+    def numero_decharge(self):
+        """Numero porte par la decharge remise au porteur du courrier.
+
+        Il est derive de la reference plutot que stocke : deux impressions du
+        meme courrier doivent porter le meme numero, et une decharge egaree
+        se reimprime a l'identique. « COUR-2026-004 » donne « DECH-2026-004 ».
+        """
+        if not self.reference:
+            return ""
+        _, separateur, suite = self.reference.partition("-")
+        return f"DECH-{suite}" if separateur else f"DECH-{self.reference}"
 
     @property
     def is_closed(self):

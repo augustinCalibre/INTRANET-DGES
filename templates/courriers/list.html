@@ -60,7 +60,7 @@
         {% endif %}
 
         <form method="get" class="row g-3 mb-4">
-            <div class="col-lg-4">
+            <div class="col-lg-3">
                 <label class="form-label" for="courrierSearch">Recherche</label>
                 <input
                     type="text"
@@ -71,7 +71,7 @@
                     placeholder="Référence, objet, expéditeur ou service"
                 >
             </div>
-            <div class="col-lg-3">
+            <div class="col-lg-2">
                 <label class="form-label" for="courrierStatus">Statut</label>
                 <select name="statut" id="courrierStatus" class="form-select">
                     <option value="">Tous les statuts</option>
@@ -86,6 +86,15 @@
                     <option value="">Tous</option>
                     {% for value, label in sens_choices %}
                         <option value="{{ value }}" {% if sens_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label" for="courrierNature">Nature</label>
+                <select name="nature" id="courrierNature" class="form-select">
+                    <option value="">Toutes</option>
+                    {% for value, label in nature_choices %}
+                        <option value="{{ value }}" {% if nature_filter == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -109,6 +118,7 @@
                     <tr>
                         <th>Référence</th>
                         <th>Objet</th>
+                        <th>Nature</th>
                         <th>Expéditeur</th>
                         <th>Service</th>
                         <th>Réception</th>
@@ -126,6 +136,10 @@
                                 {% endif %}
                             </td>
                             <td data-label="Objet">{{ courrier.objet|truncatechars:60 }}</td>
+                            <td data-label="Nature">
+                                {{ courrier.get_nature_display }}
+                                <small class="d-block text-muted">{{ courrier.get_sens_display }}</small>
+                            </td>
                             <td data-label="Expéditeur">{{ courrier.expediteur }}</td>
                             <td data-label="Service">{{ courrier.destinataire_service.nom|default:"-" }}</td>
                             <td data-label="Réception">{{ courrier.date_reception|date:"d/m/Y" }}</td>
@@ -177,7 +191,7 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="7">
+                            <td colspan="8">
                                 <div class="diploma-empty">
                                     <strong>Aucun courrier</strong>
                                     <span>

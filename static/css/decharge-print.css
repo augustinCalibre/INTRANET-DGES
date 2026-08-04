@@ -1,0 +1,320 @@
+/* ============================================================
+   Décharge de courrier administratif — mise en page pour le papier
+
+   Elle est remise au porteur du courrier comme preuve de dépôt, et peut
+   ressortir des mois plus tard pour établir une date. Trois conséquences sur
+   la mise en page :
+
+     - les identifiants tiennent en tête, dans un cadre qu'on retrouve d'un
+       coup d'œil dans un classeur ;
+     - les rubriques qui engagent une personne sont largement espacées : une
+       signature manuscrite a besoin de place ;
+     - encre noire et aucun aplat superflu, la décharge étant souvent
+       photocopiée.
+
+   La page fait un A4 exact. Le navigateur l'enregistre en PDF sans réglage
+   particulier.
+   ============================================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 1.5rem;
+    background: #f2f4f7;
+    color: #000000;
+    font-family: "Calibri", "Segoe UI", Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.4;
+}
+
+.decharge-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    max-width: 21cm;
+    margin: 0 auto 1rem;
+}
+
+.decharge-actions a,
+.decharge-actions button {
+    padding: 0.45rem 0.9rem;
+    border: 1px solid #c3ccd6;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #14476b;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.decharge-actions button {
+    background: #1b6398;
+    border-color: #1b6398;
+    color: #ffffff;
+}
+
+/* --- Feuille A4 ------------------------------------------------------- */
+
+.decharge {
+    display: flex;
+    flex-direction: column;
+    width: 21cm;
+    min-height: 29.7cm;
+    margin: 0 auto;
+    padding: 1.5cm 1.8cm;
+    background: #ffffff;
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.12);
+}
+
+/* --- En-tête administratif ------------------------------------------- */
+
+.decharge-entete {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1.5px solid #000000;
+    font-size: 9.5pt;
+}
+
+.decharge-entete-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.08rem;
+}
+
+.decharge-entete-droite {
+    text-align: right;
+}
+
+.decharge-entete strong {
+    font-size: 9.5pt;
+    letter-spacing: 0.01em;
+}
+
+.decharge-entete-filet {
+    padding-left: 1.2rem;
+    letter-spacing: 0.12em;
+}
+
+.decharge-entete-droite .decharge-entete-filet {
+    padding-left: 0;
+    padding-right: 1.2rem;
+}
+
+/* --- Titre ------------------------------------------------------------ */
+
+.decharge-titre {
+    margin: 1.3rem 0 0.3rem;
+    font-size: 15pt;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.decharge-sous-titre {
+    margin: 0 0 1.1rem;
+    font-size: 9.5pt;
+    text-align: center;
+    letter-spacing: 0.02em;
+}
+
+/* --- Cadre des identifiants ------------------------------------------ */
+
+/* Le numéro de décharge est le point d'entrée quand on cherche une pièce
+   des mois plus tard : il est cadré et détaché du reste. */
+.decharge-identite {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.55rem 0.8rem;
+    border: 1.5px solid #000000;
+}
+
+.decharge-identite-numero {
+    display: flex;
+    flex-direction: column;
+}
+
+.decharge-identite-numero span {
+    font-size: 8pt;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.decharge-identite-numero strong {
+    font-size: 14pt;
+    letter-spacing: 0.04em;
+}
+
+.decharge-identite-nature {
+    padding: 0.2rem 0.7rem;
+    border: 1px solid #000000;
+    font-size: 9.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* --- Rubriques -------------------------------------------------------- */
+
+.decharge-corps {
+    flex: 1;
+    margin-top: 1.1rem;
+}
+
+.decharge-ligne {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.7rem;
+    font-size: 10.5pt;
+}
+
+.decharge-ligne-libelle {
+    flex: 0 0 auto;
+    font-weight: 700;
+}
+
+/* Trait de remplissage : il court jusqu'au bord et reçoit soit la valeur
+   déjà connue, soit rien — auquel cas on écrit dessus au stylo. */
+.decharge-ligne-valeur {
+    flex: 1;
+    min-width: 0;
+    padding: 0 0.2rem;
+    border-bottom: 1px dotted #000000;
+    /* Le trait garde sa hauteur même vide, sans quoi les lignes vierges
+       s'écraseraient et la décharge serait impossible à remplir. */
+    min-height: 1.15rem;
+}
+
+.decharge-ligne-valeur.est-remplie {
+    border-bottom-style: solid;
+    font-weight: 600;
+}
+
+/* Rubriques sur deux lignes : le libellé au-dessus, le trait en dessous,
+   pour laisser toute la largeur à une écriture manuscrite. */
+.decharge-bloc {
+    margin-bottom: 0.85rem;
+}
+
+.decharge-bloc-libelle {
+    display: block;
+    margin-bottom: 0.15rem;
+    font-size: 10.5pt;
+    font-weight: 700;
+}
+
+.decharge-bloc-valeur {
+    padding: 0 0.2rem;
+    border-bottom: 1px dotted #000000;
+    min-height: 1.25rem;
+}
+
+.decharge-bloc-valeur.est-remplie {
+    border-bottom-style: solid;
+    font-weight: 600;
+}
+
+.decharge-bloc-vide {
+    height: 1.25rem;
+    margin-top: 0.55rem;
+    border-bottom: 1px dotted #000000;
+}
+
+/* Deux rubriques côte à côte, quand chacune tient sur une demi-largeur. */
+.decharge-duo {
+    display: flex;
+    gap: 1.4rem;
+}
+
+.decharge-duo > * {
+    flex: 1;
+    min-width: 0;
+}
+
+/* --- Lieu et date ----------------------------------------------------- */
+
+.decharge-lieu-date {
+    margin: 1.4rem 0 0;
+    font-size: 10.5pt;
+    text-align: right;
+}
+
+/* --- Signatures ------------------------------------------------------- */
+
+.decharge-signatures {
+    display: flex;
+    gap: 1.6rem;
+    margin-top: 0.9rem;
+}
+
+.decharge-signature {
+    flex: 1;
+    /* Une signature et un cachet demandent de la place : moins de quatre
+       centimètres et l'on signe par-dessus le cadre. */
+    min-height: 3.6cm;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #000000;
+}
+
+.decharge-signature strong {
+    display: block;
+    font-size: 9.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.decharge-signature small {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 8pt;
+}
+
+/* --- Pied de page ----------------------------------------------------- */
+
+.decharge-pied {
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #000000;
+    font-size: 8pt;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+/* --- Impression ------------------------------------------------------- */
+
+@media print {
+    body {
+        padding: 0;
+        background: #ffffff;
+    }
+
+    .decharge-actions {
+        display: none;
+    }
+
+    .decharge {
+        width: auto;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    /* Ni le cadre des identifiants ni les signatures ne doivent se couper
+       entre deux pages : une décharge scindée ne prouve plus rien. */
+    .decharge-identite,
+    .decharge-signatures {
+        break-inside: avoid;
+    }
+}

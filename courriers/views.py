@@ -42,6 +42,7 @@ def _require_access(user):
 def _filter_courriers(request, courriers):
     statut = request.GET.get("statut", "").strip()
     sens = request.GET.get("sens", "").strip()
+    nature = request.GET.get("nature", "").strip()
     priorite = request.GET.get("priorite", "").strip()
     recherche = request.GET.get("q", "").strip()
     libelle = ""
@@ -54,6 +55,12 @@ def _filter_courriers(request, courriers):
             libelle = ""
     if sens:
         courriers = courriers.filter(sens=sens)
+    if nature:
+        courriers = courriers.filter(nature=nature)
+        try:
+            libelle = libelle or Courrier.Nature(nature).label
+        except ValueError:
+            pass
     if priorite:
         courriers = courriers.filter(priorite=priorite)
         if priorite == Courrier.Priorite.URGENTE:
@@ -70,6 +77,7 @@ def _filter_courriers(request, courriers):
     return courriers, {
         "status_filter": statut,
         "sens_filter": sens,
+        "nature_filter": nature,
         "priorite_filter": priorite,
         "search_term": recherche,
         "active_filter_label": libelle,
@@ -87,6 +95,7 @@ def courrier_list(request):
         "status_counts": get_status_counts(request.user),
         "status_choices": Courrier.Status.choices,
         "sens_choices": Courrier.Sens.choices,
+        "nature_choices": Courrier.Nature.choices,
         "priorite_choices": Courrier.Priorite.choices,
         "can_manage": can_manage_courriers(request.user),
         "can_access": can_access_courriers(request.user),
@@ -353,6 +362,50 @@ def courrier_fiche_print(request, pk):
 
 
 @login_required
+def courrier_decharge(request, pk):
+    """Décharge de courrier administratif, prête à imprimer.
+
+    Elle est remise au porteur du courrier comme preuve de dépôt. Les
+    identifiants — numéro de décharge, référence, objet, date de réception —
+    sont déjà portés ; les rubriques qui engagent une personne, sa signature
+    et le cachet du service, restent à remplir à la main.
+    """
+    _require_access(request.user)
+    courrier = get_object_or_404(
+        get_visible_courriers(request.user).select_related(
+            "destinataire_service",
+            "receptionne_par",
+            "receptionne_par__profil",
+            "receptionne_par__profil__service",
+        ),
+        pk=pk,
+    )
+
+    receptionnaire = courrier.receptionne_par
+    profil = getattr(receptionnaire, "profil", None) if receptionnaire else None
+
+    return render(
+        request,
+        "courriers/decharge_print.html",
+        {
+            "courrier": courrier,
+            "receptionnaire_nom": (
+                receptionnaire.get_full_name().strip() or receptionnaire.username
+            )
+            if receptionnaire
+            else "",
+            # La fonction et le service ne sont portés que s'ils sont connus :
+            # une ligne pré-remplie de travers est plus gênante qu'une ligne
+            # vide, qu'on complète au stylo.
+            "receptionnaire_fonction": getattr(profil, "fonction", "") or "",
+            "receptionnaire_service": (
+                profil.service.nom if profil and profil.service else ""
+            ),
+        },
+    )
+
+
+@login_required
 @require_POST
 def courrier_status(request, pk, statut):
     _require_access(request.user)
@@ -422,6 +475,7 @@ def courrier_export(request):
         [
             "Référence",
             "Sens",
+            "Nature",
             "Objet",
             "Expéditeur",
             "Service destinataire",
@@ -438,6 +492,7 @@ def courrier_export(request):
             [
                 courrier.reference,
                 courrier.get_sens_display(),
+                courrier.get_nature_display(),
                 courrier.objet,
                 courrier.expediteur,
                 courrier.destinataire_service.nom if courrier.destinataire_service else "",

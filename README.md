@@ -264,8 +264,13 @@ Registre du courrier avec circuit de visa imposé. Aucune étape ne peut être s
 | Diffusion pour suite à donner | Secrétariat |
 | Classement | Service courrier |
 
-- sens entrant ou sortant, priorité normale ou urgente ;
+- **sens** entrant ou sortant, et **nature** du document : courrier simple, autorisation,
+  note, ordre de mission. Deux champs distincts et non un seul, parce qu'ils répondent à
+  deux questions : le sens fonde les registres arrivée et départ, la nature dit de quel
+  document il s'agit. Un ordre de mission peut entrer comme sortir ;
+- priorité normale ou urgente ;
 - expéditeur, objet, service destinataire, date de réception et date portée sur le courrier ;
+- **décharge imprimable** remise au porteur comme preuve de dépôt (voir plus bas) ;
 - pièce numérisée téléchargeable via une vue contrôlée, jamais servie en direct ;
 - l'instruction du DG est enregistrée avec le visa et redescend au service concerné ;
 - notifications internes à chaque changement de main, dédoublonnées par personne ;
@@ -275,6 +280,28 @@ Registre du courrier avec circuit de visa imposé. Aucune étape ne peut être s
 
 Le service courrier **ne peut pas** saisir directement le bureau du DG : la tentative est
 refusée avec un message explicite.
+
+#### Décharge de courrier administratif
+
+Chaque courrier a **sa décharge, déjà préparée**, accessible depuis sa fiche. Elle est
+remise au porteur comme preuve de dépôt, et peut ressortir des mois plus tard pour
+établir une date.
+
+Elle porte son propre numéro, `DECH-année-numéro`, dérivé de la référence du courrier
+plutôt que stocké : deux impressions du même courrier portent le même numéro, et une
+décharge égarée se réimprime à l'identique.
+
+Sont déjà imprimés : numéro de décharge, référence et numéro d'arrivée, objet,
+provenance, service destinataire, date de réception, nature du document, et le
+réceptionnaire avec sa fonction quand il est connu.
+
+Restent vierges, volontairement : l'heure de réception, le nombre de pièces jointes, la
+signature et le cachet. L'heure enregistrée par l'intranet est celle de la saisie, pas
+celle de la remise en main propre — l'imprimer reviendrait à attester d'un fait inexact.
+Quant au nombre de feuillets, il se compte devant le porteur.
+
+Comme la fiche d'analyse, la décharge est une page A4 mise en forme pour le papier : le
+navigateur l'imprime ou l'enregistre en PDF sans réglage particulier.
 
 #### Fiche d'analyse du courrier
 

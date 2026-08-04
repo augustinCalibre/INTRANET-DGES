@@ -140,6 +140,7 @@ class CourrierForm(StyledFormMixin, forms.ModelForm):
             "reference",
             "numero_arrivee",
             "sens",
+            "nature",
             "objet",
             "expediteur",
             "destinataire_service",
@@ -153,6 +154,7 @@ class CourrierForm(StyledFormMixin, forms.ModelForm):
             "reference": "Suivi du courrier n°",
             "numero_arrivee": "Courrier arrivée n°",
             "sens": "Sens",
+            "nature": "Nature du document",
             "objet": "Objet du courrier",
             "expediteur": "Expéditeur",
             "destinataire_service": "Service destinataire",
@@ -163,6 +165,7 @@ class CourrierForm(StyledFormMixin, forms.ModelForm):
         help_texts = {
             "reference": "Laisser vide pour une attribution automatique (COUR-année-numéro).",
             "numero_arrivee": "Numéro porté sur la pièce à son arrivée, s'il existe.",
+            "nature": "Le sens dit s'il entre ou s'il sort, la nature dit de quel document il s'agit.",
             "expediteur": "Organisme, établissement ou personne à l'origine du courrier.",
         }
         widgets = {

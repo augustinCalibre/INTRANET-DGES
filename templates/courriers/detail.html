@@ -7,7 +7,7 @@
     <div class="panel-card diploma-lot-head mb-4">
         <div class="diploma-lot-head-top">
             <div>
-                <span class="diploma-lot-kicker">Courrier {{ courrier.get_sens_display|lower }}</span>
+                <span class="diploma-lot-kicker">{{ courrier.get_nature_display }} · {{ courrier.get_sens_display|lower }}</span>
                 <h3 class="diploma-lot-title">{{ courrier.objet }}</h3>
                 <p class="diploma-lot-meta mb-0">
                     De {{ courrier.expediteur }}
@@ -23,6 +23,7 @@
                 {% if courrier.is_urgent %}<span class="diploma-flag">Urgent</span>{% endif %}
                 <div class="d-flex flex-wrap gap-2">
                     <a href="{% url 'courriers:list' %}" class="btn btn-outline-secondary btn-sm">Retour au registre</a>
+                    <a href="{% url 'courriers:decharge' courrier.pk %}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">Imprimer la décharge</a>
                     <a href="{% url 'courriers:fiche_print' courrier.pk %}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">Imprimer la fiche d'analyse</a>
                     {% if can_record_fiche %}
                         <a href="{% url 'courriers:fiche' courrier.pk %}" class="btn btn-primary btn-sm">Renseigner la fiche</a>

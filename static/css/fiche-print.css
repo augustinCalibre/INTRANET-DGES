@@ -195,8 +195,11 @@ body {
     font-size: 10pt;
 }
 
-/* Case à cocher dessinée : un rond vide à remplir au stylo, ou marqué
-   d'une croix quand la décision est déjà saisie dans le système. */
+/* Case à cocher dessinée : un rond vide à remplir au stylo, ou entièrement
+   noirci quand la décision est déjà saisie dans le système.
+   Le disque plein se lit d'un coup d'œil sur une page qui en compte
+   plusieurs dizaines, là où une croix se confond avec le trait du rond une
+   fois la feuille photocopiée. */
 .fiche-coche {
     flex: 0 0 12px;
     width: 12px;
@@ -206,14 +209,13 @@ body {
     position: relative;
 }
 
-.fiche-coche.est-cochee::after {
-    content: "✕";
-    position: absolute;
-    inset: -4px 0 0 0;
-    text-align: center;
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
+.fiche-coche.est-cochee {
+    background: #000000;
+    /* Les navigateurs suppriment les aplats à l'impression pour épargner
+       l'encre. Sans cette instruction, le rond ressortirait vide sur le
+       papier — exactement l'inverse de ce qu'il doit dire. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
 }
 
 /* Instructions : quatre colonnes, comme sur l'imprimé */

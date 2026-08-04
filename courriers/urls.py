@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     courrier_create,
+    courrier_decharge,
     courrier_delete,
     courrier_detail,
     courrier_download,
@@ -24,6 +25,7 @@ urlpatterns = [
     path("<int:pk>/piece/", courrier_download, name="download"),
     path("<int:pk>/fiche/", courrier_fiche, name="fiche"),
     path("<int:pk>/fiche/imprimer/", courrier_fiche_print, name="fiche_print"),
+    path("<int:pk>/decharge/", courrier_decharge, name="decharge"),
     path("<int:pk>/statut/<str:statut>/", courrier_status, name="status"),
     path("<int:pk>/supprimer/", courrier_delete, name="delete"),
 ]
