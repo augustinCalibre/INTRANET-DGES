@@ -72,6 +72,10 @@ def _filter_courriers(request, courriers):
             | Q(expediteur__icontains=recherche)
             | Q(observation__icontains=recherche)
             | Q(destinataire_service__nom__icontains=recherche)
+            # Les deux sens se cherchent de la même façon : le nom tapé peut
+            # être celui d'un expéditeur externe comme d'un destinataire.
+            | Q(service_emetteur__nom__icontains=recherche)
+            | Q(destinataire_externe__nom__icontains=recherche)
         )
 
     return courriers, {
@@ -363,46 +367,31 @@ def courrier_fiche_print(request, pk):
 
 @login_required
 def courrier_decharge(request, pk):
-    """Décharge de courrier administratif, prête à imprimer.
+    """Décharge accompagnant un courrier sortant, prête à imprimer.
 
-    Elle est remise au porteur du courrier comme preuve de dépôt. Les
-    identifiants — numéro de décharge, référence, objet, date de réception —
-    sont déjà portés ; les rubriques qui engagent une personne, sa signature
-    et le cachet du service, restent à remplir à la main.
+    Elle part avec le courrier et revient signée : c'est le destinataire, à
+    l'extérieur de la DGES, qui la remplit à la remise. Tout ce qui le
+    concerne — son nom, sa fonction, la date et l'heure auxquelles il reçoit,
+    le nombre de pièces qu'il compte — est donc inconnu à l'impression et
+    reste vierge. Pré-remplir ces rubriques reviendrait à attester de faits
+    qui ne se sont pas encore produits.
+
+    Un courrier entrant n'en a pas : la DGES le reçoit, elle ne le remet à
+    personne.
     """
     _require_access(request.user)
     courrier = get_object_or_404(
         get_visible_courriers(request.user).select_related(
-            "destinataire_service",
-            "receptionne_par",
-            "receptionne_par__profil",
-            "receptionne_par__profil__service",
+            "service_emetteur",
+            "destinataire_externe",
         ),
         pk=pk,
     )
 
-    receptionnaire = courrier.receptionne_par
-    profil = getattr(receptionnaire, "profil", None) if receptionnaire else None
+    if not courrier.est_sortant:
+        raise Http404("La décharge ne concerne que les courriers sortants.")
 
-    return render(
-        request,
-        "courriers/decharge_print.html",
-        {
-            "courrier": courrier,
-            "receptionnaire_nom": (
-                receptionnaire.get_full_name().strip() or receptionnaire.username
-            )
-            if receptionnaire
-            else "",
-            # La fonction et le service ne sont portés que s'ils sont connus :
-            # une ligne pré-remplie de travers est plus gênante qu'une ligne
-            # vide, qu'on complète au stylo.
-            "receptionnaire_fonction": getattr(profil, "fonction", "") or "",
-            "receptionnaire_service": (
-                profil.service.nom if profil and profil.service else ""
-            ),
-        },
-    )
+    return render(request, "courriers/decharge_print.html", {"courrier": courrier})
 
 
 @login_required
@@ -477,8 +466,8 @@ def courrier_export(request):
             "Sens",
             "Nature",
             "Objet",
-            "Expéditeur",
-            "Service destinataire",
+            "Provenance",
+            "Destinataire",
             "Réception",
             "Priorité",
             "Statut",
@@ -494,8 +483,8 @@ def courrier_export(request):
                 courrier.get_sens_display(),
                 courrier.get_nature_display(),
                 courrier.objet,
-                courrier.expediteur,
-                courrier.destinataire_service.nom if courrier.destinataire_service else "",
+                courrier.provenance,
+                courrier.destinataire,
                 courrier.date_reception.strftime("%d/%m/%Y") if courrier.date_reception else "",
                 courrier.get_priorite_display(),
                 courrier.get_statut_display(),

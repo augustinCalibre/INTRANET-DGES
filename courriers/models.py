@@ -1,3 +1,4 @@
+import unicodedata
 from pathlib import Path
 from uuid import uuid4
 
@@ -9,6 +10,24 @@ from django.utils.text import slugify
 from accounts.models import Service
 
 REFERENCE_PREFIX = "COUR"
+
+
+def normaliser_nom(nom):
+    """Forme de comparaison d'un nom d'organisme.
+
+    Sert a reconnaitre « Universite Felix Houphouet-Boigny » et « Université
+    Félix Houphouët-Boigny » comme un seul et meme correspondant. Sans cela,
+    le repertoire se remplirait de doublons et aucun regroupement par
+    organisme ne serait possible.
+
+    Accents retires, casse ignoree, espaces multiples reduits.
+    """
+    sans_accents = "".join(
+        caractere
+        for caractere in unicodedata.normalize("NFKD", nom or "")
+        if not unicodedata.combining(caractere)
+    )
+    return " ".join(sans_accents.casefold().split())
 
 
 def courrier_upload_path(instance, filename):
@@ -38,6 +57,59 @@ def generate_courrier_reference(year=None):
             sequence = Courrier.objects.filter(reference__startswith=prefix).count() + 1
 
     return f"{prefix}{sequence:03d}"
+
+
+class CorrespondantExterne(models.Model):
+    """Organisme exterieur a la DGES : universite, ministere, etablissement.
+
+    Le repertoire se constitue seul, a l'usage : un nom saisi pour la premiere
+    fois cree sa fiche, les suivants le retrouvent. Personne n'a de liste a
+    tenir a jour, et le registre reste groupable par organisme — ce qu'une
+    zone de texte libre ne permet pas, les orthographes divergeant avec le
+    temps.
+    """
+
+    nom = models.CharField(max_length=200, unique=True)
+    # Forme de comparaison, jamais affichee. Elle porte l'unicite reelle :
+    # deux graphies du meme organisme ne doivent pas creer deux fiches.
+    nom_normalise = models.CharField(max_length=200, unique=True, editable=False)
+    actif = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["nom"]
+        verbose_name = "Correspondant externe"
+        verbose_name_plural = "Correspondants externes"
+
+    def __str__(self):
+        return self.nom
+
+    def save(self, *args, **kwargs):
+        self.nom = " ".join((self.nom or "").split())
+        self.nom_normalise = normaliser_nom(self.nom)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def obtenir_ou_creer(cls, nom):
+        """Retrouve le correspondant par sa forme normalisee, ou le cree.
+
+        Retourne None pour un nom vide, ce qui laisse au formulaire le soin
+        de decider si l'absence est acceptable.
+        """
+        nom = " ".join((nom or "").split())
+        if not nom:
+            return None
+        normalise = normaliser_nom(nom)
+        existant = cls.objects.filter(nom_normalise=normalise).first()
+        if existant:
+            return existant
+        try:
+            with transaction.atomic():
+                return cls.objects.create(nom=nom)
+        except IntegrityError:
+            # Deux enregistrements simultanes du meme correspondant : le
+            # perdant recupere la fiche creee par l'autre.
+            return cls.objects.get(nom_normalise=normalise)
 
 
 class InstructionCourrier(models.Model):
@@ -115,13 +187,49 @@ class Courrier(models.Model):
         help_text="Numéro « COURRIER ARRIVÉE » porté sur la pièce à la réception.",
     )
     objet = models.CharField(max_length=255)
-    expediteur = models.CharField(max_length=180)
+
+    # --- Qui envoie, qui reçoit -------------------------------------
+    #
+    # Les deux sens sont symetriques et se lisent en miroir :
+    #
+    #   entrant  : expediteur (organisme exterieur) -> destinataire_service
+    #   sortant  : service_emetteur (interne)       -> destinataire_externe
+    #
+    # D'ou quatre champs facultatifs plutot que deux obligatoires : c'est le
+    # formulaire qui exige les bons selon le sens. Les proprietes `provenance`
+    # et `destinataire` donnent ensuite la lecture unifiee pour le registre,
+    # la recherche et les impressions.
+    expediteur = models.CharField(
+        max_length=180,
+        blank=True,
+        verbose_name="Expéditeur",
+        help_text="Organisme ou personne à l'origine d'un courrier entrant.",
+    )
     destinataire_service = models.ForeignKey(
         Service,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="courriers",
+        verbose_name="Service destinataire",
+    )
+    service_emetteur = models.ForeignKey(
+        Service,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="courriers_emis",
+        verbose_name="Service émetteur",
+        help_text="Service de la DGES à l'origine d'un courrier sortant.",
+    )
+    destinataire_externe = models.ForeignKey(
+        CorrespondantExterne,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="courriers",
+        verbose_name="Destinataire",
+        help_text="Organisme extérieur destinataire d'un courrier sortant.",
     )
     date_reception = models.DateField(default=timezone.localdate)
     date_courrier = models.DateField(
@@ -288,8 +396,32 @@ class Courrier(models.Model):
         return Path(self.fichier.name).name if self.fichier else ""
 
     @property
+    def est_sortant(self):
+        return self.sens == self.Sens.SORTANT
+
+    @property
+    def provenance(self):
+        """D'où vient le courrier, quel que soit son sens.
+
+        Les courriers sortants enregistres avant la separation des champs
+        portaient leur service emetteur dans `expediteur`. On retombe dessus
+        plutot que d'afficher un vide : la donnee existe, elle est seulement
+        rangee ailleurs.
+        """
+        if self.est_sortant:
+            return self.service_emetteur.nom if self.service_emetteur else self.expediteur
+        return self.expediteur
+
+    @property
+    def destinataire(self):
+        """Où va le courrier, quel que soit son sens."""
+        if self.est_sortant and self.destinataire_externe:
+            return self.destinataire_externe.nom
+        return self.destinataire_service.nom if self.destinataire_service else ""
+
+    @property
     def numero_decharge(self):
-        """Numero porte par la decharge remise au porteur du courrier.
+        """Numero porte par la decharge accompagnant un courrier sortant.
 
         Il est derive de la reference plutot que stocke : deux impressions du
         meme courrier doivent porter le meme numero, et une decharge egaree

@@ -2,12 +2,16 @@
 <!doctype html>
 <html lang="fr">
 {% comment %}
-    Décharge remise au porteur du courrier, preuve de son dépôt.
+    Décharge accompagnant un courrier sortant.
 
-    Ce qui est déjà connu du système est imprimé : numéro de décharge,
-    référence, objet, provenance, date de réception. Ce qui engage une
-    personne — nom, fonction, signature, cachet — reste vierge : une décharge
-    n'a de valeur que remplie et signée de la main du réceptionnaire.
+    Elle part avec le courrier et revient signée. C'est le destinataire, à
+    l'extérieur de la DGES, qui la remplit à la remise : son nom, sa fonction,
+    la date et l'heure auxquelles il reçoit, le nombre de pièces qu'il compte.
+    Rien de tout cela n'est connu à l'impression, et rien n'est pré-rempli.
+
+    Ce que la DGES sait — d'où part le courrier, où il va, sous quelle
+    référence et pour quel objet — est imprimé, pour que la décharge se
+    rattache sans ambiguïté à la pièce qu'elle accompagne.
 {% endcomment %}
 <head>
     <meta charset="utf-8">
@@ -38,7 +42,7 @@
 
         <h1 class="decharge-titre">Décharge de courrier administratif</h1>
         <p class="decharge-sous-titre">
-            Le présent document atteste de la réception du courrier désigné ci-dessous.
+            À remplir et à signer par le destinataire au moment de la remise.
         </p>
 
         <div class="decharge-identite">
@@ -50,102 +54,107 @@
         </div>
 
         <div class="decharge-corps">
-            <div class="decharge-duo">
+            {% comment %}
+                Le courrier, tel que la DGES le connaît. Ce bloc identifie la
+                pièce ; il n'engage encore personne.
+            {% endcomment %}
+            <section class="decharge-section">
+                <h2 class="decharge-section-titre">Le courrier remis</h2>
+
                 <div class="decharge-ligne">
-                    <span class="decharge-ligne-libelle">Courrier reçu le</span>
-                    <span class="decharge-ligne-valeur {% if courrier.date_reception %}est-remplie{% endif %}">
-                        {% if courrier.date_reception %}{{ courrier.date_reception|date:"d/m/Y" }}{% endif %}
-                    </span>
+                    <span class="decharge-ligne-libelle">Référence</span>
+                    <span class="decharge-ligne-valeur est-remplie">{{ courrier.reference }}</span>
                 </div>
-                <div class="decharge-ligne">
-                    <span class="decharge-ligne-libelle">Heure de réception</span>
-                    {% comment %}
-                        L'heure n'est pas enregistrée : celle de la saisie dans
-                        l'intranet n'est pas celle de la remise en main propre,
-                        et la donner serait attester d'un fait inexact.
-                    {% endcomment %}
-                    <span class="decharge-ligne-valeur"></span>
-                </div>
-            </div>
 
-            <div class="decharge-ligne">
-                <span class="decharge-ligne-libelle">Référence du courrier</span>
-                <span class="decharge-ligne-valeur est-remplie">
-                    {{ courrier.reference }}{% if courrier.numero_arrivee %} — arrivée n° {{ courrier.numero_arrivee }}{% endif %}
-                </span>
-            </div>
-
-            <div class="decharge-bloc">
-                <span class="decharge-bloc-libelle">Objet</span>
-                <div class="decharge-bloc-valeur est-remplie">{{ courrier.objet }}</div>
-            </div>
-
-            <div class="decharge-duo">
                 <div class="decharge-bloc">
-                    <span class="decharge-bloc-libelle">Provenance</span>
-                    <div class="decharge-bloc-valeur est-remplie">{{ courrier.expediteur }}</div>
+                    <span class="decharge-bloc-libelle">Objet</span>
+                    <div class="decharge-bloc-valeur est-remplie">{{ courrier.objet }}</div>
                 </div>
-                <div class="decharge-bloc">
-                    <span class="decharge-bloc-libelle">Service destinataire</span>
-                    <div class="decharge-bloc-valeur {% if courrier.destinataire_service %}est-remplie{% endif %}">
-                        {% if courrier.destinataire_service %}{{ courrier.destinataire_service.nom }}{% endif %}
+
+                <div class="decharge-duo">
+                    <div class="decharge-bloc">
+                        <span class="decharge-bloc-libelle">Service émetteur</span>
+                        <div class="decharge-bloc-valeur {% if courrier.provenance %}est-remplie{% endif %}">
+                            {{ courrier.provenance }}
+                        </div>
+                    </div>
+                    <div class="decharge-bloc">
+                        <span class="decharge-bloc-libelle">Destinataire</span>
+                        <div class="decharge-bloc-valeur {% if courrier.destinataire %}est-remplie{% endif %}">
+                            {{ courrier.destinataire }}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="decharge-ligne">
-                <span class="decharge-ligne-libelle">Nombre de pièces jointes</span>
-                {% comment %}
-                    Le système ne connaît que la pièce numérisée, pas le nombre
-                    de feuillets physiquement remis : c'est au réceptionnaire
-                    de le compter devant le porteur.
-                {% endcomment %}
-                <span class="decharge-ligne-valeur"></span>
-            </div>
-
-            <div class="decharge-bloc">
-                <span class="decharge-bloc-libelle">Nom et prénoms du réceptionnaire</span>
-                <div class="decharge-bloc-valeur {% if receptionnaire_nom %}est-remplie{% endif %}">
-                    {{ receptionnaire_nom }}
+                <div class="decharge-ligne">
+                    <span class="decharge-ligne-libelle">Date du courrier</span>
+                    <span class="decharge-ligne-valeur {% if courrier.date_courrier %}est-remplie{% endif %}">
+                        {% if courrier.date_courrier %}{{ courrier.date_courrier|date:"d/m/Y" }}{% endif %}
+                    </span>
                 </div>
-            </div>
+            </section>
 
-            <div class="decharge-bloc">
-                <span class="decharge-bloc-libelle">Fonction / Service</span>
-                <div class="decharge-bloc-valeur {% if receptionnaire_fonction or receptionnaire_service %}est-remplie{% endif %}">
-                    {% if receptionnaire_fonction %}{{ receptionnaire_fonction }}{% endif %}
-                    {% if receptionnaire_fonction and receptionnaire_service %} — {% endif %}
-                    {% if receptionnaire_service %}{{ receptionnaire_service }}{% endif %}
-                </div>
-            </div>
+            {% comment %}
+                Tout ce qui suit est rempli à la main par le destinataire.
+                Aucune de ces rubriques ne peut être connue à l'impression :
+                les pré-remplir attesterait de faits qui ne se sont pas encore
+                produits.
+            {% endcomment %}
+            <section class="decharge-section decharge-section-a-remplir">
+                <h2 class="decharge-section-titre">Reçu par le destinataire</h2>
 
-            <div class="decharge-bloc">
-                <span class="decharge-bloc-libelle">Observations éventuelles</span>
-                <div class="decharge-bloc-valeur {% if courrier.observation %}est-remplie{% endif %}">
-                    {% if courrier.observation %}{{ courrier.observation }}{% endif %}
+                <div class="decharge-duo">
+                    <div class="decharge-ligne">
+                        <span class="decharge-ligne-libelle">Reçu le</span>
+                        <span class="decharge-ligne-valeur">…… / …… / …………</span>
+                    </div>
+                    <div class="decharge-ligne">
+                        <span class="decharge-ligne-libelle">À</span>
+                        <span class="decharge-ligne-valeur">……… h ………</span>
+                    </div>
                 </div>
-                <div class="decharge-bloc-vide" aria-hidden="true"></div>
-            </div>
 
-            <p class="decharge-lieu-date">
-                Fait à ………………………………, le …… / …… / …………
-            </p>
+                <div class="decharge-bloc">
+                    <span class="decharge-bloc-libelle">Nom et prénoms du réceptionnaire</span>
+                    <div class="decharge-bloc-valeur"></div>
+                </div>
 
-            <div class="decharge-signatures">
-                <div class="decharge-signature">
-                    <strong>Signature du réceptionnaire</strong>
-                    <small>Nom, prénoms et signature</small>
+                <div class="decharge-bloc">
+                    <span class="decharge-bloc-libelle">Fonction / Service</span>
+                    <div class="decharge-bloc-valeur"></div>
                 </div>
-                <div class="decharge-signature">
-                    <strong>Cachet du service</strong>
-                    <small>Ou de la structure</small>
+
+                <div class="decharge-ligne">
+                    <span class="decharge-ligne-libelle">Nombre de pièces reçues</span>
+                    <span class="decharge-ligne-valeur"></span>
                 </div>
-            </div>
+
+                <div class="decharge-bloc">
+                    <span class="decharge-bloc-libelle">Observations éventuelles</span>
+                    <div class="decharge-bloc-valeur"></div>
+                    <div class="decharge-bloc-vide" aria-hidden="true"></div>
+                </div>
+
+                <p class="decharge-lieu-date">
+                    Fait à ………………………………, le …… / …… / …………
+                </p>
+
+                <div class="decharge-signatures">
+                    <div class="decharge-signature">
+                        <strong>Signature du réceptionnaire</strong>
+                        <small>Précédée de la mention « Reçu »</small>
+                    </div>
+                    <div class="decharge-signature">
+                        <strong>Cachet du service</strong>
+                        <small>Ou de la structure</small>
+                    </div>
+                </div>
+            </section>
         </div>
 
         <footer class="decharge-pied">
             <span>Direction Générale de l'Enseignement Supérieur — {{ courrier.numero_decharge }}</span>
-            <span>Document à conserver par le porteur</span>
+            <span>Exemplaire à retourner signé à la DGES</span>
         </footer>
     </div>
 </body>

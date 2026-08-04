@@ -18,14 +18,21 @@
             {% endif %}
         </p>
 
-        <form method="post" enctype="multipart/form-data" novalidate>
+        <form method="post" enctype="multipart/form-data" novalidate data-courrier-form>
             {% csrf_token %}
             {% if form.non_field_errors %}
                 <div class="alert alert-danger">{{ form.non_field_errors }}</div>
             {% endif %}
             <div class="row g-3">
                 {% for field in form %}
-                    <div class="{% if field.name == 'objet' or field.name == 'observation' %}col-12{% else %}col-md-6{% endif %}">
+                    {% comment %}
+                        Les rubriques propres à un sens portent data-sens, posé par
+                        le formulaire sur le champ lui-même. Le script remonte au
+                        bloc parent pour le masquer quand il ne sert pas. Sans
+                        JavaScript tout reste affiché : la validation côté serveur
+                        demeure seule juge de ce qui est exigé.
+                    {% endcomment %}
+                    <div class="{% if field.name == 'objet' or field.name == 'observation' %}col-12{% else %}col-md-6{% endif %}" data-rubrique>
                         <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
                         {{ field }}
                         {% if field.help_text %}
@@ -46,5 +53,44 @@
                 </button>
             </div>
         </form>
+
+        {% comment %}
+            Destinataires déjà enregistrés. Le navigateur les propose pendant
+            la frappe ; un nom absent de la liste crée sa fiche à
+            l'enregistrement.
+        {% endcomment %}
+        <datalist id="listeCorrespondants">
+            {% for nom in form.correspondants_connus %}
+                <option value="{{ nom }}"></option>
+            {% endfor %}
+        </datalist>
     </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        (function () {
+            var formulaire = document.querySelector("[data-courrier-form]");
+            if (!formulaire) {
+                return;
+            }
+            var choixSens = formulaire.querySelector("[name='sens']");
+            var champs = formulaire.querySelectorAll("[data-sens]");
+            if (!choixSens || !champs.length) {
+                return;
+            }
+
+            var ajuster = function () {
+                champs.forEach(function (champ) {
+                    var rubrique = champ.closest("[data-rubrique]");
+                    if (rubrique) {
+                        rubrique.hidden = champ.dataset.sens !== choixSens.value;
+                    }
+                });
+            };
+
+            choixSens.addEventListener("change", ajuster);
+            ajuster();
+        })();
+    </script>
 {% endblock %}

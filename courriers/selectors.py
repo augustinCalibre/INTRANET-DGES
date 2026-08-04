@@ -14,6 +14,8 @@ def get_visible_courriers(user):
     """
     queryset = Courrier.objects.select_related(
         "destinataire_service",
+        "service_emetteur",
+        "destinataire_externe",
         "receptionne_par",
         "transmis_par",
         "vise_par",
@@ -30,8 +32,12 @@ def get_visible_courriers(user):
     # donner suite.
     filters = Q(receptionne_par=user) | Q(cree_par=user) | Q(agents_imputes=user)
     if profile and profile.service_id:
-        filters |= Q(destinataire_service=profile.service) | Q(
-            services_imputes=profile.service
+        filters |= (
+            Q(destinataire_service=profile.service)
+            | Q(services_imputes=profile.service)
+            # Un service voit ce qu'il a lui-même envoyé, sinon il perdrait de
+            # vue ses propres courriers sortants dès leur enregistrement.
+            | Q(service_emetteur=profile.service)
         )
     return queryset.filter(filters).distinct()
 

@@ -269,8 +269,8 @@ Registre du courrier avec circuit de visa imposé. Aucune étape ne peut être s
   deux questions : le sens fonde les registres arrivée et départ, la nature dit de quel
   document il s'agit. Un ordre de mission peut entrer comme sortir ;
 - priorité normale ou urgente ;
-- expéditeur, objet, service destinataire, date de réception et date portée sur le courrier ;
-- **décharge imprimable** remise au porteur comme preuve de dépôt (voir plus bas) ;
+- objet, date de réception et date portée sur le courrier ;
+- **décharge imprimable** pour les courriers sortants (voir plus bas) ;
 - pièce numérisée téléchargeable via une vue contrôlée, jamais servie en direct ;
 - l'instruction du DG est enregistrée avec le visa et redescend au service concerné ;
 - notifications internes à chaque changement de main, dédoublonnées par personne ;
@@ -281,24 +281,48 @@ Registre du courrier avec circuit de visa imposé. Aucune étape ne peut être s
 Le service courrier **ne peut pas** saisir directement le bureau du DG : la tentative est
 refusée avec un message explicite.
 
+#### Entrant et sortant : deux lectures en miroir
+
+Les deux sens ne se remplissent pas de la même façon, et le formulaire n'affiche que les
+rubriques du sens choisi.
+
+| | Vient de | Va vers |
+|---|---|---|
+| **Entrant** | expéditeur, organisme extérieur | service destinataire, interne |
+| **Sortant** | service émetteur, interne | destinataire, organisme extérieur |
+
+Le registre, la recherche et l'export lisent les deux de la même manière, par les
+colonnes **Provenance** et **Destinataire**.
+
+**Le répertoire des correspondants externes se constitue à l'usage.** À la saisie d'un
+courrier sortant, on tape les premières lettres du destinataire : les organismes déjà
+utilisés sont proposés, et un nom inédit crée sa fiche automatiquement. Personne n'a de
+liste à tenir à jour.
+
+Les noms sont rapprochés sur une forme normalisée — accents retirés, casse ignorée,
+espaces réduits. Sans cela, « Universite FHB » et « Université F.H.B. » deviendraient
+deux organismes distincts et aucun regroupement ne serait possible six mois plus tard.
+
 #### Décharge de courrier administratif
 
-Chaque courrier a **sa décharge, déjà préparée**, accessible depuis sa fiche. Elle est
-remise au porteur comme preuve de dépôt, et peut ressortir des mois plus tard pour
-établir une date.
+**Elle ne concerne que les courriers sortants.** Elle part avec le courrier et revient
+signée : c'est le destinataire, à l'extérieur de la DGES, qui la remplit à la remise. Un
+courrier entrant n'en a pas — la DGES le reçoit, elle ne le remet à personne.
 
 Elle porte son propre numéro, `DECH-année-numéro`, dérivé de la référence du courrier
 plutôt que stocké : deux impressions du même courrier portent le même numéro, et une
 décharge égarée se réimprime à l'identique.
 
-Sont déjà imprimés : numéro de décharge, référence et numéro d'arrivée, objet,
-provenance, service destinataire, date de réception, nature du document, et le
-réceptionnaire avec sa fonction quand il est connu.
+La page sépare nettement deux blocs, et cette séparation est le cœur du document :
 
-Restent vierges, volontairement : l'heure de réception, le nombre de pièces jointes, la
-signature et le cachet. L'heure enregistrée par l'intranet est celle de la saisie, pas
-celle de la remise en main propre — l'imprimer reviendrait à attester d'un fait inexact.
-Quant au nombre de feuillets, il se compte devant le porteur.
+- **le courrier remis**, ce que la DGES atteste en imprimant — numéro de décharge,
+  référence, objet, service émetteur, destinataire, date du courrier ;
+- **reçu par le destinataire**, ce qu'il atteste en signant — date et heure de réception,
+  nom et fonction, nombre de pièces reçues, observations, signature et cachet.
+
+Rien du second bloc n'est pré-rempli. Ni le réceptionnaire ni la date de réception ne
+sont connus à l'impression : les porter reviendrait à attester de faits qui ne se sont pas
+encore produits, sur un document qui fait preuve.
 
 Comme la fiche d'analyse, la décharge est une page A4 mise en forme pour le papier : le
 navigateur l'imprime ou l'enregistre en PDF sans réglage particulier.

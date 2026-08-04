@@ -119,8 +119,8 @@
                         <th>Référence</th>
                         <th>Objet</th>
                         <th>Nature</th>
-                        <th>Expéditeur</th>
-                        <th>Service</th>
+                        <th>Provenance</th>
+                        <th>Destinataire</th>
                         <th>Réception</th>
                         <th>Statut</th>
                         <th></th>
@@ -140,8 +140,8 @@
                                 {{ courrier.get_nature_display }}
                                 <small class="d-block text-muted">{{ courrier.get_sens_display }}</small>
                             </td>
-                            <td data-label="Expéditeur">{{ courrier.expediteur }}</td>
-                            <td data-label="Service">{{ courrier.destinataire_service.nom|default:"-" }}</td>
+                            <td data-label="Provenance">{{ courrier.provenance|default:"-" }}</td>
+                            <td data-label="Destinataire">{{ courrier.destinataire|default:"-" }}</td>
                             <td data-label="Réception">{{ courrier.date_reception|date:"d/m/Y" }}</td>
                             <td data-label="Statut"><span class="{{ courrier.status_badge_class }}">{{ courrier.get_statut_display }}</span></td>
                             <td data-label="Action" class="text-end table-actions">

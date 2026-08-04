@@ -170,6 +170,35 @@ body {
     margin-top: 1.1rem;
 }
 
+/* Deux sections, et la distinction est le cœur du document : ce que la DGES
+   atteste en imprimant, et ce que le destinataire atteste en signant. Les
+   confondre reviendrait à faire dire à la décharge ce qu'elle ne dit pas. */
+
+.decharge-section + .decharge-section {
+    margin-top: 1.2rem;
+}
+
+.decharge-section-titre {
+    margin: 0 0 0.6rem;
+    padding-bottom: 0.2rem;
+    border-bottom: 1px solid #000000;
+    font-size: 10pt;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* La partie à remplir est encadrée : sur le bureau du destinataire, elle
+   désigne d'elle-même ce qu'on attend de lui. */
+.decharge-section-a-remplir {
+    padding: 0.7rem 0.9rem 0.9rem;
+    border: 1.5px solid #000000;
+}
+
+.decharge-section-a-remplir .decharge-section-titre {
+    margin-top: 0;
+}
+
 .decharge-ligne {
     display: flex;
     align-items: baseline;
@@ -311,9 +340,10 @@ body {
         box-shadow: none;
     }
 
-    /* Ni le cadre des identifiants ni les signatures ne doivent se couper
+    /* Ni le cadre des identifiants ni la partie à signer ne doivent se couper
        entre deux pages : une décharge scindée ne prouve plus rien. */
     .decharge-identite,
+    .decharge-section-a-remplir,
     .decharge-signatures {
         break-inside: avoid;
     }

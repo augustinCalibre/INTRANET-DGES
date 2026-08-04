@@ -21,7 +21,13 @@ from core.models import Notification
 
 from tasks.models import Task
 
-from .models import Courrier, InstructionCourrier, generate_courrier_reference
+from .models import (
+    CorrespondantExterne,
+    Courrier,
+    InstructionCourrier,
+    generate_courrier_reference,
+    normaliser_nom,
+)
 from .services import build_imputation_grid
 from .workflow import apply_transition, get_available_transitions
 
@@ -853,61 +859,250 @@ class NatureDocumentTests(TestCase):
         self.assertIn("Note", contenu)
 
 
+class RepertoireCorrespondantsTests(TestCase):
+    """Le répertoire se remplit à l'usage, sans doublon.
+
+    C'est le point qui décide de sa valeur : si « Universite FHB » et
+    « Université F.H.B. » créent deux fiches, aucun regroupement par organisme
+    n'est possible et le répertoire ne vaut pas mieux qu'une zone de texte.
+    """
+
+    def test_un_nom_inedit_cree_sa_fiche(self):
+        correspondant = CorrespondantExterne.obtenir_ou_creer("Université de Korhogo")
+        self.assertEqual(correspondant.nom, "Université de Korhogo")
+        self.assertEqual(CorrespondantExterne.objects.count(), 1)
+
+    def test_un_nom_deja_connu_ne_cree_pas_de_doublon(self):
+        premier = CorrespondantExterne.obtenir_ou_creer("Université de Korhogo")
+        second = CorrespondantExterne.obtenir_ou_creer("Université de Korhogo")
+        self.assertEqual(premier.pk, second.pk)
+        self.assertEqual(CorrespondantExterne.objects.count(), 1)
+
+    def test_les_accents_et_la_casse_sont_ignores(self):
+        premier = CorrespondantExterne.obtenir_ou_creer("Université Félix Houphouët-Boigny")
+        second = CorrespondantExterne.obtenir_ou_creer("universite felix houphouet-boigny")
+        self.assertEqual(premier.pk, second.pk)
+        # La graphie d'origine est conservée pour l'affichage.
+        self.assertEqual(second.nom, "Université Félix Houphouët-Boigny")
+
+    def test_les_espaces_superflus_sont_absorbes(self):
+        premier = CorrespondantExterne.obtenir_ou_creer("  Ministère   de la Santé ")
+        second = CorrespondantExterne.obtenir_ou_creer("Ministère de la Santé")
+        self.assertEqual(premier.pk, second.pk)
+        self.assertEqual(premier.nom, "Ministère de la Santé")
+
+    def test_un_nom_vide_ne_cree_rien(self):
+        self.assertIsNone(CorrespondantExterne.obtenir_ou_creer(""))
+        self.assertIsNone(CorrespondantExterne.obtenir_ou_creer("   "))
+        self.assertIsNone(CorrespondantExterne.obtenir_ou_creer(None))
+        self.assertEqual(CorrespondantExterne.objects.count(), 0)
+
+    def test_normalisation(self):
+        self.assertEqual(normaliser_nom("Université  FÉLIX "), "universite felix")
+
+
 @override_settings(SECURE_SSL_REDIRECT=False)
-class DechargeTests(TestCase):
-    """Décharge remise au porteur : preuve de dépôt du courrier."""
+class CourrierSortantTests(TestCase):
+    """Le sortant se lit en miroir de l'entrant.
+
+    entrant : expéditeur externe  -> service destinataire interne
+    sortant : service émetteur    -> destinataire externe
+    """
 
     def setUp(self):
         self.service = Service.objects.create(nom="Service Courrier", actif=True)
         self.agent_courrier = make_user("courrier", ROLE_COURRIER, self.service)
+        self.client.force_login(self.agent_courrier)
+
+    def _donnees_sortant(self, **extra):
+        donnees = {
+            "reference": "",
+            "numero_arrivee": "",
+            "sens": Courrier.Sens.SORTANT,
+            "nature": Courrier.Nature.ORDRE_MISSION,
+            "objet": "Mission de contrôle pédagogique",
+            "expediteur": "",
+            "destinataire_service": "",
+            "service_emetteur": self.service.pk,
+            "destinataire_externe_nom": "Université de Daloa",
+            "date_reception": "2026-08-04",
+            "date_courrier": "",
+            "priorite": Courrier.Priorite.NORMALE,
+            "receptionne_par": "",
+            "observation": "",
+        }
+        donnees.update(extra)
+        return donnees
+
+    def test_enregistrer_un_sortant_cree_le_correspondant(self):
+        reponse = self.client.post(reverse("courriers:create"), self._donnees_sortant())
+        self.assertEqual(reponse.status_code, 302)
+
+        courrier = Courrier.objects.get()
+        self.assertEqual(courrier.service_emetteur, self.service)
+        self.assertEqual(courrier.destinataire_externe.nom, "Université de Daloa")
+        self.assertEqual(courrier.provenance, "Service Courrier")
+        self.assertEqual(courrier.destinataire, "Université de Daloa")
+
+    def test_le_meme_destinataire_ne_cree_pas_deux_fiches(self):
+        self.client.post(reverse("courriers:create"), self._donnees_sortant())
+        self.client.post(
+            reverse("courriers:create"),
+            self._donnees_sortant(
+                objet="Second envoi",
+                destinataire_externe_nom="universite de daloa",
+            ),
+        )
+        self.assertEqual(Courrier.objects.count(), 2)
+        self.assertEqual(CorrespondantExterne.objects.count(), 1)
+
+    def test_un_sortant_sans_destinataire_est_refuse(self):
+        reponse = self.client.post(
+            reverse("courriers:create"),
+            self._donnees_sortant(destinataire_externe_nom=""),
+        )
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFormError(
+            reponse.context["form"],
+            "destinataire_externe_nom",
+            "Indiquez l'organisme destinataire de ce courrier.",
+        )
+        self.assertEqual(Courrier.objects.count(), 0)
+
+    def test_un_sortant_sans_service_emetteur_est_refuse(self):
+        reponse = self.client.post(
+            reverse("courriers:create"),
+            self._donnees_sortant(service_emetteur=""),
+        )
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFormError(
+            reponse.context["form"],
+            "service_emetteur",
+            "Indiquez le service de la DGES à l'origine de ce courrier.",
+        )
+
+    def test_un_entrant_sans_expediteur_est_refuse(self):
+        reponse = self.client.post(
+            reverse("courriers:create"),
+            self._donnees_sortant(sens=Courrier.Sens.ENTRANT, expediteur=""),
+        )
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFormError(
+            reponse.context["form"],
+            "expediteur",
+            "Indiquez l'expéditeur de ce courrier.",
+        )
+
+    def test_les_rubriques_de_l_autre_sens_sont_videes(self):
+        """Un expéditeur laissé en place ferait apparaître dans le registre
+        quelqu'un qui n'a jamais rien envoyé.
+        """
+        self.client.post(
+            reverse("courriers:create"),
+            self._donnees_sortant(expediteur="Université fantôme", numero_arrivee="A-1"),
+        )
+        courrier = Courrier.objects.get()
+        self.assertEqual(courrier.expediteur, "")
+        self.assertEqual(courrier.numero_arrivee, "")
+        self.assertIsNone(courrier.destinataire_service)
+
+    def test_le_registre_se_cherche_par_destinataire(self):
+        self.client.post(reverse("courriers:create"), self._donnees_sortant())
+        reponse = self.client.get(reverse("courriers:list"), {"q": "Daloa"})
+        self.assertContains(reponse, "Université de Daloa")
+
+    def test_un_sortant_ancien_garde_sa_provenance(self):
+        """Les courriers enregistrés avant la séparation des champs."""
+        ancien = Courrier.objects.create(
+            objet="Ancien envoi",
+            sens=Courrier.Sens.SORTANT,
+            expediteur="DIRECTION GÉNÉRALE",
+            cree_par=self.agent_courrier,
+        )
+        self.assertEqual(ancien.provenance, "DIRECTION GÉNÉRALE")
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class DechargeTests(TestCase):
+    """Décharge : elle accompagne un courrier sortant et revient signée.
+
+    Ce que ces tests protègent avant tout : qu'aucune rubrique du destinataire
+    ne soit pré-remplie. Elles attesteraient de faits qui ne se sont pas encore
+    produits, sur un document qui fait preuve.
+    """
+
+    def setUp(self):
+        self.service = Service.objects.create(nom="Cabinet du Directeur", actif=True)
+        self.agent_courrier = make_user("courrier", ROLE_COURRIER, self.service)
         self.agent_isole = make_user("isole", ROLE_AGENT)
-        self.courrier = Courrier.objects.create(
-            objet="Demande d'équivalence de diplôme",
-            expediteur="Université Félix Houphouët-Boigny",
-            numero_arrivee="A-2026-114",
-            nature=Courrier.Nature.AUTORISATION,
+        self.destinataire = CorrespondantExterne.obtenir_ou_creer(
+            "Université Félix Houphouët-Boigny"
+        )
+        self.sortant = Courrier.objects.create(
+            objet="Transmission des résultats du CEES",
+            sens=Courrier.Sens.SORTANT,
+            nature=Courrier.Nature.ORDRE_MISSION,
+            service_emetteur=self.service,
+            destinataire_externe=self.destinataire,
+            receptionne_par=self.agent_courrier,
+            cree_par=self.agent_courrier,
+        )
+        self.entrant = Courrier.objects.create(
+            objet="Demande de reconnaissance",
+            sens=Courrier.Sens.ENTRANT,
+            expediteur="ISP Gombe",
             receptionne_par=self.agent_courrier,
             cree_par=self.agent_courrier,
         )
 
     def test_le_numero_de_decharge_derive_de_la_reference(self):
         """Deux impressions du même courrier portent le même numéro."""
-        self.courrier.reference = "COUR-2026-004"
-        self.assertEqual(self.courrier.numero_decharge, "DECH-2026-004")
+        self.sortant.reference = "COUR-2026-004"
+        self.assertEqual(self.sortant.numero_decharge, "DECH-2026-004")
 
     def test_numero_de_decharge_sans_prefixe_attendu(self):
-        self.courrier.reference = "X99"
-        self.assertEqual(self.courrier.numero_decharge, "DECH-X99")
+        self.sortant.reference = "X99"
+        self.assertEqual(self.sortant.numero_decharge, "DECH-X99")
 
-    def test_la_decharge_porte_les_identifiants_du_courrier(self):
+    def test_la_decharge_porte_ce_que_la_dges_connait(self):
         self.client.force_login(self.agent_courrier)
-        reponse = self.client.get(reverse("courriers:decharge", args=[self.courrier.pk]))
+        reponse = self.client.get(reverse("courriers:decharge", args=[self.sortant.pk]))
         self.assertEqual(reponse.status_code, 200)
-        self.assertContains(reponse, self.courrier.numero_decharge)
-        self.assertContains(reponse, self.courrier.reference)
-        self.assertContains(reponse, "Demande d&#x27;équivalence de diplôme")
-        self.assertContains(reponse, "A-2026-114")
-        self.assertContains(reponse, "Autorisation")
+        self.assertContains(reponse, self.sortant.numero_decharge)
+        self.assertContains(reponse, self.sortant.reference)
+        self.assertContains(reponse, "Transmission des résultats du CEES")
+        self.assertContains(reponse, "Cabinet du Directeur")
+        self.assertContains(reponse, "Université Félix Houphouët-Boigny")
 
-    def test_la_decharge_porte_le_receptionnaire_connu(self):
+    def test_la_decharge_ne_prejuge_pas_du_receptionnaire(self):
+        """Le réceptionnaire est extérieur à la DGES : il est inconnu ici."""
         self.agent_courrier.first_name = "Ama"
         self.agent_courrier.last_name = "Kouadio"
         self.agent_courrier.save()
         self.client.force_login(self.agent_courrier)
-        reponse = self.client.get(reverse("courriers:decharge", args=[self.courrier.pk]))
-        self.assertContains(reponse, "Ama Kouadio")
-        self.assertContains(reponse, "Service Courrier")
+        reponse = self.client.get(reverse("courriers:decharge", args=[self.sortant.pk]))
+        self.assertNotContains(reponse, "Ama Kouadio")
 
-    def test_la_decharge_reste_imprimable_sans_receptionnaire(self):
-        """Un courrier saisi sans réceptionnaire s'imprime, à remplir au stylo."""
-        self.courrier.receptionne_par = None
-        self.courrier.save(update_fields=["receptionne_par"])
+    def test_la_decharge_ne_prejuge_pas_de_la_date_de_reception(self):
+        """La date de réception est celle de la remise, encore à venir."""
         self.client.force_login(self.agent_courrier)
-        reponse = self.client.get(reverse("courriers:decharge", args=[self.courrier.pk]))
-        self.assertEqual(reponse.status_code, 200)
-        self.assertContains(reponse, "Nom et prénoms du réceptionnaire")
+        reponse = self.client.get(reverse("courriers:decharge", args=[self.sortant.pk]))
+        self.assertNotContains(reponse, self.sortant.date_reception.strftime("%d/%m/%Y"))
+
+    def test_un_courrier_entrant_n_a_pas_de_decharge(self):
+        """La DGES le reçoit, elle ne le remet à personne."""
+        self.client.force_login(self.agent_courrier)
+        reponse = self.client.get(reverse("courriers:decharge", args=[self.entrant.pk]))
+        self.assertEqual(reponse.status_code, 404)
+
+    def test_le_bouton_n_apparait_que_sur_un_sortant(self):
+        self.client.force_login(self.agent_courrier)
+        page_sortant = self.client.get(reverse("courriers:detail", args=[self.sortant.pk]))
+        page_entrant = self.client.get(reverse("courriers:detail", args=[self.entrant.pk]))
+        self.assertContains(page_sortant, "Imprimer la décharge")
+        self.assertNotContains(page_entrant, "Imprimer la décharge")
 
     def test_un_agent_sans_acces_n_obtient_pas_la_decharge(self):
         self.client.force_login(self.agent_isole)
-        reponse = self.client.get(reverse("courriers:decharge", args=[self.courrier.pk]))
+        reponse = self.client.get(reverse("courriers:decharge", args=[self.sortant.pk]))
         self.assertIn(reponse.status_code, (403, 404))
