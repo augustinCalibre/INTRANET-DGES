@@ -526,6 +526,16 @@ Le conteneur `web` applique automatiquement :
 
 ### Accès réseau local
 
+> **La plateforme fonctionne actuellement en local uniquement.** Les ports
+> n'écoutent que sur `127.0.0.1` : rien n'est joignable depuis le réseau, quelles que
+> soient les règles du pare-feu. L'accès se fait sur `https://localhost/` et
+> `https://localhost:8443/` depuis la machine elle-même.
+>
+> Ce qui suit décrit l'exposition réseau, conservée pour le jour où elle sera reprise.
+> La marche à suivre pour rouvrir l'accès est dans
+> [docs/DEPLOIEMENT_WINDOWS_LOCAL.md](docs/DEPLOIEMENT_WINDOWS_LOCAL.md), section
+> « Revenir à l'exposition réseau ».
+
 Depuis le serveur Ubuntu :
 
 - `https://127.0.0.1/`

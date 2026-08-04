@@ -1,5 +1,15 @@
 # Deploiement Windows local sur le reseau DGES
 
+> **Etat actuel : la plateforme fonctionne en local uniquement.** Les ports
+> n'ecoutent que sur la boucle locale (`127.0.0.1`) et rien n'est joignable
+> depuis le reseau, quelles que soient les regles du pare-feu. L'acces se fait
+> sur `https://localhost/` et `https://localhost:8443/` depuis la machine
+> elle-meme.
+>
+> Ce guide decrit l'exposition reseau, conservee pour le jour ou elle sera
+> reprise. Pour rouvrir l'acces aux equipes, voir « Revenir a l'exposition
+> reseau » en fin de document.
+
 Ce guide couvre le besoin le plus urgent : exposer rapidement l'intranet sur le reseau local a partir d'un PC Windows relie au routeur en RJ45, puis mettre a jour le serveur depuis GitHub.
 
 ## Strategie recommandee
@@ -325,3 +335,58 @@ meme serveur non supervise.
 8. pointez `BACKUP_DIR` vers le second disque, puis lancez une sauvegarde de controle ;
 9. reglez le demarrage automatique de Docker Desktop et l'ouverture de session ;
 10. pour chaque mise a jour : `git push` ici, puis `update-from-github.ps1 -Build` sur le serveur.
+
+## Revenir a l'exposition reseau
+
+La plateforme tourne aujourd'hui en local uniquement. Trois changements la
+rouvrent aux equipes, et il faut les trois : chacun pris seul laisse l'acces
+ferme.
+
+**1. Publier les ports au-dela de la boucle locale.** Dans `docker-compose.yml`,
+service `nginx`, retirer le prefixe `127.0.0.1:` :
+
+```yaml
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8443:8443"
+```
+
+**2. Declarer l'adresse du serveur.** Dans `.env`, ajouter l'adresse fixe a
+`ALLOWED_HOSTS` et a `NEXTCLOUD_TRUSTED_DOMAINS`, et retablir les URL :
+
+```env
+ALLOWED_HOSTS=localhost,127.0.0.1,192.168.100.X,intranet-dges.local,messagerie.dges.local
+INTRANET_HOSTNAME=intranet-dges.local
+INTRANET_URL=https://intranet-dges.local
+INTRANET_FALLBACK_URL=https://192.168.100.X
+MESSAGING_URL=https://messagerie.dges.local:8443
+MESSAGING_FALLBACK_URL=https://192.168.100.X:8443
+NEXTCLOUD_TRUSTED_DOMAINS=localhost 127.0.0.1 messagerie.dges.local intranet-dges.local 192.168.100.X
+NEXTCLOUD_OVERWRITE_CLI_URL=https://messagerie.dges.local:8443
+```
+
+**3. Fixer l'adresse.** Une adresse obtenue par DHCP change, et chaque
+changement casse l'acces de tout le monde en silence : le nom ne resout plus,
+et l'application refuse une adresse qu'elle ne connait pas. Reservez l'adresse
+sur le routeur a partir de l'adresse MAC, ou configurez-la en statique sur la
+carte reseau. Preferez le RJ45 au Wi-Fi.
+
+Puis appliquer, en n'oubliant pas de relancer nginx apres avoir recree `web` —
+il garde en memoire l'ancienne adresse du conteneur et repondrait 502 :
+
+```powershell
+docker compose up -d
+docker compose restart nginx
+```
+
+### Pieges rencontres, a ne pas redecouvrir
+
+- **Apres un redemarrage de Docker Desktop**, le relais de ports peut rester
+  sur l'ancien demon : la connexion TCP aboutit mais rien ne repond.
+  `docker compose restart nginx` retablit la situation.
+- **Apres avoir recree le conteneur `web`**, nginx pointe encore sur son
+  ancienne adresse et renvoie 502. Meme remede.
+- **`NEXTCLOUD_TRUSTED_DOMAINS` est reapplique a chaque demarrage** du
+  conteneur : une valeur ajoutee a la main avec `occ` se retrouve en double.
+  Modifier `.env`, pas la configuration en place.
