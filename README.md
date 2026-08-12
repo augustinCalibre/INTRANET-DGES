@@ -96,6 +96,30 @@ python manage.py purge_demo --confirmer    # suppression effective
 
 La commande refuse de s'exécuter s'il ne resterait aucun superutilisateur après la purge.
 
+### Import de l'annuaire réel
+
+L'état du personnel de la DGES est transcrit dans
+[accounts/annuaire_dges.py](accounts/annuaire_dges.py) : huit services, quatorze agents,
+avec fonction, rôle, service, adresse et téléphone. Une commande crée le tout :
+
+```powershell
+docker compose exec web python manage.py importer_annuaire
+```
+
+Elle est faite pour être relancée : elle ne crée que ce qui manque, ne supprime rien, et
+**ne rétablit pas le mot de passe d'un compte existant** — un agent qui a choisi le sien
+ne doit pas le voir revenir au mot de passe commun à chaque exécution. L'option
+`--reinitialiser-mots-de-passe` force ce rétablissement, à n'utiliser qu'avant la
+première distribution des accès.
+
+Les services absents de l'organigramme sont **désactivés et non supprimés** : un courrier
+imputé à un service disparu doit rester lisible.
+
+Le mot de passe initial est commun et vaut pour l'intranet comme pour la messagerie.
+Chaque agent doit le changer à sa première connexion, et son nouveau mot de passe est
+porté aux deux systèmes. Il fait dix caractères au minimum, longueur exigée par la
+politique de mots de passe de Nextcloud.
+
 ## Panneau général d'accès
 
 Réservé à l'administrateur, avec l'annuaire ouvert en lecture au Directeur Général.
@@ -771,6 +795,73 @@ de `psql` et des mots de passe : rien à installer sur Windows.
 Cette procédure a été exécutée depuis le disque de sauvegarde, et la restauration
 complète a été vérifiée de bout en bout : une donnée créée après la sauvegarde avait bien
 disparu après restauration, le reste étant intact.
+
+## Messagerie interne
+
+Nextcloud Talk, servi à côté de l'intranet. Le choix est motivé dans
+[docs/ARCHITECTURE_MESSAGERIE_INTERNE.md](docs/ARCHITECTURE_MESSAGERIE_INTERNE.md).
+
+### L'intranet fait autorité sur l'annuaire
+
+Rien ne se crée à la main dans Nextcloud. Un compte agent naît, se modifie et se
+désactive dans l'intranet ; la messagerie suit. Sans cette règle les deux annuaires
+divergent, et plus personne ne sait lequel dit vrai.
+
+Trois conséquences, qui sont l'essentiel du dispositif :
+
+- **un seul identifiant** — celui de l'intranet, jamais un autre ;
+- **un seul mot de passe**. Il est porté à la messagerie aux trois moments où l'intranet
+  le connaît en clair : création du compte, réinitialisation par l'administrateur,
+  changement par l'agent. Le reste du temps, celui de la messagerie n'est pas touché —
+  le remplacer par une valeur aléatoire couperait l'agent de ses conversations ;
+- **désactiver un compte ferme la messagerie**, immédiatement. C'est le point qui compte
+  le jour où quelqu'un quitte la direction. Supprimer un compte agent désactive son
+  compte Nextcloud sans l'effacer : une conversation doit rester lisible et attribuable
+  des mois après le départ de celui qui l'a écrite.
+
+### Conversations
+
+Un groupe Nextcloud par service, plus `dges-tous`, et une conversation Talk adossée à
+chacun. Elles suivent le groupe : un agent affecté à un service rejoint sa conversation
+sans que personne l'y invite, un agent muté la quitte.
+
+Chaque agent voit donc la conversation générale et celle de son service, et pas les
+autres.
+
+### Réparer après une panne
+
+La messagerie peut être arrêtée sans que l'intranet cesse de fonctionner : créer un
+compte agent réussit même alors, avec un avertissement. Ce qui n'a pas pu passer se
+rattrape ensuite :
+
+```powershell
+docker compose exec web python manage.py synchroniser_messagerie
+docker compose exec web python manage.py synchroniser_messagerie --conversations
+```
+
+La commande ne fait que ce qui manque ; deux exécutions de suite donnent le même
+résultat.
+
+### Réglages (`.env`)
+
+| Variable | Rôle | Défaut |
+|---|---|---|
+| `MESSAGERIE_SYNC_ENABLED` | active la synchronisation | `1` |
+| `MESSAGERIE_API_URL` | adresse interne de Nextcloud | `http://nextcloud-app` |
+| `MESSAGERIE_TIMEOUT` | délai d'attente, en secondes | `10` |
+
+Les identifiants d'administration sont ceux de Nextcloud (`NEXTCLOUD_ADMIN_USER` et
+`NEXTCLOUD_ADMIN_PASSWORD`). Attention : ces variables ne servent qu'à **l'installation**
+de Nextcloud. Si le mot de passe de l'administrateur a été changé depuis, la
+synchronisation échoue avec « identifiants refusés » ; on les réaligne par :
+
+```powershell
+docker compose exec -u www-data nextcloud-app php occ user:resetpassword admin_dges
+```
+
+Le nom de conteneur `nextcloud-app` doit figurer dans `NEXTCLOUD_TRUSTED_DOMAINS` :
+l'appel passe par le réseau Docker interne, et Nextcloud refuse tout hôte absent de
+cette liste.
 
 ## Journalisation et historique des connexions
 

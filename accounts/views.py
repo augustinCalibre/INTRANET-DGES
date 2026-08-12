@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 from core.models import ConnexionLog
 from core.permissions import can_manage_accounts, can_view_accounts, capability_required
 from core.utils import log_activity, paginate, querystring_without, safe_next_url
+from messagerie.services import desactiver_acces_messagerie, synchroniser_sans_bloquer
 
 from .constants import ROLE_CHOICES, ROLE_GROUP_NAMES
 from .forms import (
@@ -273,13 +274,20 @@ def user_password_reset(request, pk):
     profile.doit_changer_mot_de_passe = True
     profile.save(update_fields=["doit_changer_mot_de_passe"])
 
+    # Le mot de passe provisoire vaut aussi pour la messagerie : l'agent n'a
+    # qu'un seul secret a retenir, et il le changera une seule fois.
+    avertissement = synchroniser_sans_bloquer(user, mot_de_passe=provisoire)
+
     log_activity(request.user, "Réinitialisation d'un mot de passe", "Comptes", user.username)
     messages.success(
         request,
         f"Mot de passe provisoire de {user.username} : {provisoire} — "
-        "notez-le maintenant, il ne sera plus affiché. L'agent devra le changer "
-        "à sa prochaine connexion.",
+        "notez-le maintenant, il ne sera plus affiché. Il vaut pour l'intranet "
+        "comme pour la messagerie. L'agent devra le changer à sa prochaine "
+        "connexion.",
     )
+    if avertissement:
+        messages.warning(request, avertissement)
     return redirect(safe_next_url(request, request.POST.get("next"), "accounts:user_list"))
 
 
@@ -296,9 +304,18 @@ def user_toggle_active(request, pk):
     profile.actif = not profile.actif
     profile.save()
 
+    # Le point qui compte le jour ou quelqu'un quitte la direction : fermer
+    # l'intranet sans fermer la messagerie ne ferme rien.
+    avertissement = synchroniser_sans_bloquer(user)
+
     etat = "réactivé" if profile.actif else "désactivé"
     log_activity(request.user, f"Compte {etat}", "Comptes", user.username)
-    messages.success(request, f"Le compte {user.username} a été {etat}.")
+    messages.success(
+        request,
+        f"Le compte {user.username} a été {etat}, messagerie comprise.",
+    )
+    if avertissement:
+        messages.warning(request, avertissement)
     return redirect(safe_next_url(request, request.POST.get("next"), "accounts:user_list"))
 
 
@@ -322,8 +339,19 @@ def password_change(request):
             if profile and profile.doit_changer_mot_de_passe:
                 profile.doit_changer_mot_de_passe = False
                 profile.save(update_fields=["doit_changer_mot_de_passe"])
+            # Seul moment ou l'intranet connait le nouveau mot de passe en
+            # clair : c'est ici, et nulle part ailleurs, qu'il peut le porter
+            # a la messagerie pour que l'agent n'en retienne qu'un.
+            avertissement = synchroniser_sans_bloquer(
+                request.user, mot_de_passe=form.cleaned_data.get("new_password1")
+            )
             log_activity(request.user, "Changement de mot de passe", "Comptes", request.user.username)
-            messages.success(request, "Votre mot de passe a été modifié.")
+            messages.success(
+                request,
+                "Votre mot de passe a été modifié. Il vaut aussi pour la messagerie.",
+            )
+            if avertissement:
+                messages.warning(request, avertissement)
             return redirect("dashboard:home")
     else:
         form = MotDePasseChangeForm(user=request.user)
@@ -346,8 +374,19 @@ def user_create(request):
             for field, value in profile_form.cleaned_data.items():
                 setattr(profile, field, value)
             profile.save()
+            # Le compte de messagerie nait avec le compte agent, avec le meme
+            # identifiant et le meme mot de passe. Rien a creer a la main dans
+            # Nextcloud, et donc rien qui puisse diverger.
+            avertissement = synchroniser_sans_bloquer(
+                user, mot_de_passe=user_form.cleaned_data.get("password1")
+            )
             log_activity(request.user, "Création d'un compte agent", "Comptes", user.username)
-            messages.success(request, "Le compte agent a été créé avec succès.")
+            messages.success(
+                request,
+                "Le compte agent a été créé, avec son accès à la messagerie.",
+            )
+            if avertissement:
+                messages.warning(request, avertissement)
             return redirect("accounts:user_list")
     else:
         user_form = AgentUserCreationForm(prefix="user")
@@ -376,8 +415,13 @@ def user_edit(request, pk):
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
             profile_form.save()
+            # Nom, adresse et service changent aussi dans la messagerie : un
+            # agent muté doit quitter les conversations de son ancien service.
+            avertissement = synchroniser_sans_bloquer(user)
             log_activity(request.user, "Mise à jour d'un compte agent", "Comptes", user.username)
             messages.success(request, "Le compte agent a été mis à jour.")
+            if avertissement:
+                messages.warning(request, avertissement)
             return redirect("accounts:user_list")
     else:
         user_form = AgentUserUpdateForm(instance=user, prefix="user")
@@ -405,9 +449,13 @@ def user_delete(request, pk):
         return redirect(safe_next_url(request, request.POST.get("next"), "accounts:user_list"))
 
     username = user.username
+    # La messagerie est fermee avant la suppression, tant que le compte existe
+    # encore : le compte Nextcloud est desactive et non supprime, pour que les
+    # conversations gardent trace de qui a ecrit quoi.
+    avertissement = desactiver_acces_messagerie(username)
     user.delete()
     log_activity(request.user, "Suppression d'un compte agent", "Comptes", username)
-    messages.success(request, "Le compte agent a ete supprime.")
+    messages.success(request, "Le compte agent a été supprimé et sa messagerie fermée.")
+    if avertissement:
+        messages.warning(request, avertissement)
     return redirect(safe_next_url(request, request.POST.get("next"), "accounts:user_list"))
-
-# Create your views here.

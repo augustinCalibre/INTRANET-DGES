@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     "diplomas",
     "courriers",
     "exploitation",
+    "messagerie",
 ]
 
 MIDDLEWARE = [
@@ -221,6 +222,26 @@ MEDIA_ROOT = BASE_DIR / "media"
 # demarrer.
 BACKUP_ARCHIVES_DIR = os.getenv("BACKUP_ARCHIVES_DIR", "/sauvegardes")
 BACKUP_CONTROL_DIR = os.getenv("BACKUP_CONTROL_DIR", "/controle")
+
+# --- Messagerie interne -----------------------------------------------
+#
+# L'intranet fait autorite sur l'annuaire : il cree, modifie et desactive les
+# comptes de la messagerie. L'appel se fait de conteneur a conteneur, en HTTP
+# sur le reseau Docker interne — passer par le nom public et son certificat
+# auto-signe ferait sortir puis rentrer le trafic par nginx, pour rien.
+#
+# Les identifiants d'administration sont ceux de Nextcloud : c'est le meme
+# compte qui administre la messagerie, il n'y a pas lieu d'en creer un second.
+MESSAGERIE_API_URL = os.getenv("MESSAGERIE_API_URL", "http://nextcloud-app")
+MESSAGERIE_ADMIN_USER = os.getenv("NEXTCLOUD_ADMIN_USER", "")
+MESSAGERIE_ADMIN_PASSWORD = os.getenv("NEXTCLOUD_ADMIN_PASSWORD", "")
+MESSAGERIE_TIMEOUT = int(os.getenv("MESSAGERIE_TIMEOUT", "10"))
+
+# Desactivee pendant les tests : ils ne doivent pas dependre d'un service
+# externe, ni ecrire dans une vraie messagerie.
+MESSAGERIE_SYNC_ENABLED = (
+    False if RUNNING_TESTS else env_to_bool("MESSAGERIE_SYNC_ENABLED", True)
+)
 
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "dashboard:home"
