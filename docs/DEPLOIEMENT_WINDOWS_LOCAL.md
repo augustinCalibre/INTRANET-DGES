@@ -152,16 +152,23 @@ Une fois le serveur en place :
 Commande serveur :
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\windows\update-from-github.ps1 -Branch main -Build
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\mettre-a-jour-production.ps1
 ```
 
-Ce script fait :
+Ce script fait, dans cet ordre :
 
-- verification qu'il n'y a pas de modifications locales non committees ;
-- `git fetch` ;
-- `git checkout main` ;
-- `git pull --ff-only` ;
-- `docker compose up -d --remove-orphans --build`.
+- verification que Git et Docker repondent, que `.env` existe, et qu'aucune
+  modification locale n'a ete faite sur le serveur ;
+- **sauvegarde avant toute modification**, et arret si elle echoue ;
+- `git fetch`, `git checkout`, `git pull --ff-only` ;
+- controle du `.env`, qui n'est pas versionne et n'a donc pas suivi les
+  evolutions du code ;
+- reconstruction des images, demarrage, attente des migrations, redemarrage de
+  nginx ;
+- controles finaux : intranet, messagerie, disque de sauvegarde.
+
+Le detail, les options et la marche a suivre en cas de panne sont dans
+[MISE_A_JOUR_PRODUCTION.md](MISE_A_JOUR_PRODUCTION.md).
 
 ## Routine simple de travail
 
@@ -177,7 +184,7 @@ Sur le serveur :
 
 ```powershell
 cd C:\intranet-dges
-powershell -ExecutionPolicy Bypass -File .\scripts\windows\update-from-github.ps1 -Branch main -Build
+powershell -ExecutionPolicy Bypass -File .\scripts\windows\mettre-a-jour-production.ps1
 ```
 
 ## Ce qu'il ne faut pas faire
@@ -334,7 +341,10 @@ meme serveur non supervise.
 7. testez `https://IP_DU_SERVEUR/` depuis un autre poste ;
 8. pointez `BACKUP_DIR` vers le second disque, puis lancez une sauvegarde de controle ;
 9. reglez le demarrage automatique de Docker Desktop et l'ouverture de session ;
-10. pour chaque mise a jour : `git push` ici, puis `update-from-github.ps1 -Build` sur le serveur.
+10. pour chaque mise a jour : `git push` ici, puis `mettre-a-jour-production.ps1` sur le serveur.
+
+La procedure complete, avec les pannes courantes et la marche a suivre, est dans
+[MISE_A_JOUR_PRODUCTION.md](MISE_A_JOUR_PRODUCTION.md).
 
 ## Revenir a l'exposition reseau
 
