@@ -198,12 +198,18 @@ class WorkflowTests(TestCase):
         self.assertFalse(ok)
         self.assertIn("non conformes", message)
 
-    def test_lot_vide_ne_peut_pas_etre_declare_conforme(self):
+    def test_lot_sans_anomalie_est_declare_conforme(self):
+        """Le cas normal : rien à signaler, donc tout est conforme.
+
+        L'ancienne règle exigeait des diplômes enregistrés et bloquait
+        précisément ce cas, puisqu'on ne saisit plus que les non conformes.
+        """
         self.lot.diplomes.all().delete()
         apply_transition(self.lot, Statut.EN_VERIFICATION, self.agent_etude)
         ok, message = apply_transition(self.lot, Statut.CONFORME, self.agent_etude)
-        self.assertFalse(ok)
-        self.assertIn("Aucun diplôme", message)
+        self.assertTrue(ok, message)
+        self.lot.refresh_from_db()
+        self.assertEqual(self.lot.statut, Statut.CONFORME)
 
     def test_retour_pour_correction_exige_un_motif_et_appartient_au_dg(self):
         self._verifier()
@@ -580,3 +586,85 @@ class ConsultationDeLaListeTests(TestCase):
         reponse = self.client.get(reverse("diplomas:lot_detail", args=[self.lot.pk]))
         self.assertContains(reponse, "Liste non jointe")
         self.assertNotContains(reponse, "diploma-liste-apercu")
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class ApercuDansLaFicheTests(TestCase):
+    """L'aperçu doit pouvoir s'afficher dans un cadre de la fiche.
+
+    L'intergiciel anti-détournement de clic pose « X-Frame-Options: DENY » sur
+    toutes les réponses. Sans exception explicite, le navigateur refuse le
+    document et la fiche affiche « Échec de chargement du document PDF ».
+    """
+
+    def setUp(self):
+        self.agent_etude = make_user("verificateur", ROLE_AGENT_ETUDE)
+        self.lot = LotDiplomes.objects.create(
+            etablissement="Université de Kinshasa", nombre_annonce=4
+        )
+        self.lot.fichier_liste.save(
+            "liste.pdf",
+            SimpleUploadedFile("liste.pdf", b"%PDF-1.4 contenu", content_type="application/pdf"),
+            save=True,
+        )
+        self.client.force_login(self.agent_etude)
+
+    def test_la_consultation_autorise_le_cadre_de_meme_origine(self):
+        reponse = self.client.get(
+            reverse("diplomas:lot_liste_download", args=[self.lot.pk]), {"consulter": "1"}
+        )
+        self.assertEqual(reponse["X-Frame-Options"], "SAMEORIGIN")
+        reponse.close()
+
+    def test_le_telechargement_reste_interdit_de_cadre(self):
+        """Rien n'oblige à assouplir la règle hors de l'aperçu."""
+        reponse = self.client.get(reverse("diplomas:lot_liste_download", args=[self.lot.pk]))
+        self.assertEqual(reponse["X-Frame-Options"], "DENY")
+        reponse.close()
+
+
+class ConformiteSansSaisieTests(TestCase):
+    """Un lot sans anomalie doit pouvoir être déclaré conforme.
+
+    C'est le cas normal du nouveau mode de vérification. L'ancienne règle
+    exigeait des diplômes enregistrés : elle bloquait précisément ce cas.
+    """
+
+    def setUp(self):
+        self.agent_etude = make_user("verificateur", ROLE_AGENT_ETUDE)
+        self.lot = LotDiplomes.objects.create(
+            etablissement="Université de Kinshasa",
+            nombre_annonce=120,
+            cree_par=self.agent_etude,
+        )
+
+    def test_un_lot_sans_anomalie_passe_conforme(self):
+        ok, message = apply_transition(self.lot, Statut.EN_VERIFICATION, self.agent_etude)
+        self.assertTrue(ok, message)
+        ok, message = apply_transition(self.lot, Statut.CONFORME, self.agent_etude)
+        self.assertTrue(ok, message)
+        self.lot.refresh_from_db()
+        self.assertEqual(self.lot.statut, Statut.CONFORME)
+
+    def test_une_anomalie_ouverte_bloque_toujours(self):
+        Diplome.objects.create(
+            lot=self.lot,
+            nom_beneficiaire="Awa Mbala",
+            numero_diplome="D-001",
+            statut=Diplome.Status.NON_CONFORME,
+            anomalie=Diplome.Anomalie.MANQUANT,
+        )
+        apply_transition(self.lot, Statut.EN_VERIFICATION, self.agent_etude)
+        ok, message = apply_transition(self.lot, Statut.CONFORME, self.agent_etude)
+        self.assertFalse(ok)
+        self.assertIn("non conformes", message)
+
+    def test_un_lot_sans_nombre_annonce_est_refuse(self):
+        """Sans nombre annoncé, rien ne dit ce qui a été vérifié."""
+        lot = LotDiplomes.objects.create(
+            etablissement="ISP Gombe", nombre_annonce=0, cree_par=self.agent_etude
+        )
+        apply_transition(lot, Statut.EN_VERIFICATION, self.agent_etude)
+        ok, message = apply_transition(lot, Statut.CONFORME, self.agent_etude)
+        self.assertFalse(ok)
+        self.assertIn("annoncé", message)

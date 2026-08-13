@@ -160,6 +160,10 @@ class MessagingRedirectTests(TestCase):
 
     @override_settings(
         MESSAGING_URL="https://messagerie.dges.local:8443",
+        # Declare explicitement l'absence d'URL de repli : sans cela le test
+        # dependrait du .env de la machine, et changerait de resultat selon
+        # l'installation.
+        MESSAGING_FALLBACK_URL="",
         ALLOWED_HOSTS=["testserver", "192.168.100.5"],
     )
     def test_messaging_redirect_uses_request_ip_when_intranet_opened_by_ip(self):

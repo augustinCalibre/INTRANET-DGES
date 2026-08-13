@@ -131,10 +131,21 @@ TRANSITIONS = {
 
 
 def _blocking_reason(lot, target):
-    """Condition metier empechant le passage au statut cible, sinon None."""
+    """Condition metier empechant le passage au statut cible, sinon None.
+
+    La verification ne consiste plus a saisir chaque diplome, mais a relever
+    ceux qui ne sont pas conformes. Exiger des diplomes enregistres bloquerait
+    donc exactement le cas normal : un lot sans anomalie.
+
+    Ce qu'on exige a la place : que le lot annonce un nombre, sans quoi rien
+    n'est verifiable, et qu'aucune anomalie ne reste ouverte.
+    """
     if target in {Status.CONFORME, Status.TRANSMIS_DG}:
-        if lot.nombre_enregistre == 0:
-            return "Aucun diplôme n'est enregistré dans ce lot."
+        if not lot.nombre_annonce:
+            return (
+                "Le nombre de diplômes annoncé par l'établissement n'est pas "
+                "renseigné : sans lui, rien ne dit ce qui a été vérifié."
+            )
         if lot.has_anomalies:
             return (
                 f"{lot.nombre_anomalies} diplôme(s) sont marqués non conformes. "

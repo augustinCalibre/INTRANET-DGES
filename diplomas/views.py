@@ -502,6 +502,15 @@ def lot_liste_download(request, pk):
     # partir du contenu : c'est ce qui empeche un fichier depose de se faire
     # passer pour autre chose.
     reponse["X-Content-Type-Options"] = "nosniff"
+
+    if consulter:
+        # Sans cet en-tete, le navigateur refuse d'afficher le document dans la
+        # fiche du lot : l'intergiciel anti-detournement de clic pose
+        # « X-Frame-Options: DENY » sur toutes les reponses, et l'apercu echoue
+        # sur une erreur de chargement. On ouvre le cadre a notre seule origine.
+        #
+        # L'intergiciel respecte un en-tete deja pose et ne l'ecrase pas.
+        reponse["X-Frame-Options"] = "SAMEORIGIN"
     return reponse
 
 

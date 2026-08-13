@@ -340,19 +340,18 @@
                                 <tr>
                                     <td colspan="6">
                                         <div class="diploma-empty">
-                                            <strong>Aucun diplôme dans ce lot</strong>
-                                            <span>
-                                                {% if dq or dstatut %}
-                                                    Aucun diplôme ne correspond à ces critères.
-                                                {% else %}
-                                                    Saisissez les diplômes un par un, ou importez le tableau fourni par l'établissement.
-                                                {% endif %}
-                                            </span>
-                                            {% if can_manage and lot.allows_diploma_edition and not dq and not dstatut %}
-                                                <div class="d-flex gap-2">
-                                                    <a href="{% url 'diplomas:diploma_create' lot.pk %}" class="btn btn-primary btn-sm">Ajouter un diplôme</a>
+                                            {% if dq or dstatut %}
+                                                <strong>Aucun diplôme ne correspond à ces critères</strong>
+                                            {% else %}
+                                                <strong>Aucune anomalie signalée</strong>
+                                                <span>
+                                                    Les {{ lot.nombre_annonce }} diplôme{{ lot.nombre_annonce|pluralize }} du lot
+                                                    sont donc conforme{{ lot.nombre_annonce|pluralize }}. Signalez ici ceux qui
+                                                    ne le sont pas, au fur et à mesure de la vérification.
+                                                </span>
+                                                {% if can_manage and lot.allows_diploma_edition %}
                                                     <a href="{% url 'diplomas:diploma_create' lot.pk %}" class="btn btn-outline-primary btn-sm">Signaler un diplôme non conforme</a>
-                                                </div>
+                                                {% endif %}
                                             {% endif %}
                                         </div>
                                     </td>
