@@ -520,3 +520,63 @@ class DiplomaSearchAndExportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("D-2026-0148", response.content.decode("utf-8"))
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class ConsultationDeLaListeTests(TestCase):
+    """La liste se consulte dans la page, sans passer par le téléchargement.
+
+    C'est le document qu'on garde sous les yeux pendant la vérification : le
+    reléguer derrière un téléchargement obligerait à le rouvrir à chaque
+    diplôme contrôlé.
+    """
+
+    def setUp(self):
+        self.agent_etude = make_user("verificateur", ROLE_AGENT_ETUDE)
+        self.lot = LotDiplomes.objects.create(
+            etablissement="Université de Kinshasa", nombre_annonce=5
+        )
+        self.client.force_login(self.agent_etude)
+
+    def _joindre(self, nom="liste.pdf"):
+        self.lot.fichier_liste.save(
+            nom, SimpleUploadedFile(nom, b"%PDF-1.4 contenu", content_type="application/pdf"), save=True
+        )
+
+    def test_un_pdf_s_affiche_dans_la_page(self):
+        self._joindre()
+        reponse = self.client.get(
+            reverse("diplomas:lot_liste_download", args=[self.lot.pk]), {"consulter": "1"}
+        )
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse["Content-Type"], "application/pdf")
+        self.assertNotIn("attachment", reponse.get("Content-Disposition", ""))
+        self.assertEqual(reponse["X-Content-Type-Options"], "nosniff")
+        reponse.close()
+
+    def test_un_document_word_est_toujours_telecharge(self):
+        """Le navigateur ne sait pas le rendre, et le servir en ligne
+        laisserait un fichier déposé décider de son interprétation."""
+        self._joindre("liste.docx")
+        reponse = self.client.get(
+            reverse("diplomas:lot_liste_download", args=[self.lot.pk]), {"consulter": "1"}
+        )
+        self.assertIn("attachment", reponse["Content-Disposition"])
+        reponse.close()
+
+    def test_sans_consulter_le_fichier_est_telecharge(self):
+        self._joindre()
+        reponse = self.client.get(reverse("diplomas:lot_liste_download", args=[self.lot.pk]))
+        self.assertIn("attachment", reponse["Content-Disposition"])
+        reponse.close()
+
+    def test_la_fiche_du_lot_montre_l_apercu(self):
+        self._joindre()
+        reponse = self.client.get(reverse("diplomas:lot_detail", args=[self.lot.pk]))
+        self.assertContains(reponse, "diploma-liste-apercu")
+        self.assertContains(reponse, "Ouvrir dans un onglet")
+
+    def test_la_fiche_invite_a_joindre_la_liste_quand_elle_manque(self):
+        reponse = self.client.get(reverse("diplomas:lot_detail", args=[self.lot.pk]))
+        self.assertContains(reponse, "Liste non jointe")
+        self.assertNotContains(reponse, "diploma-liste-apercu")

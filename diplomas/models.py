@@ -178,6 +178,15 @@ class LotDiplomes(models.Model):
         return self.nombre_anomalies > 0
 
     @property
+    def nom_fichier_liste(self):
+        return Path(self.fichier_liste.name).name if self.fichier_liste else ""
+
+    @property
+    def liste_est_pdf(self):
+        """Un PDF s'affiche dans la page ; un document Word se telecharge."""
+        return self.nom_fichier_liste.lower().endswith(".pdf")
+
+    @property
     def nombre_conformes(self):
         """Les diplômes du lot qui n'ont soulevé aucune anomalie.
 

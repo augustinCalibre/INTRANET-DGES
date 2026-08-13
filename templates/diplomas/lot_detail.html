@@ -90,6 +90,68 @@
         {% endif %}
     </div>
 
+    {% comment %}
+        La liste remise avec le lot, en tête et ouverte. C'est le document
+        qu'on garde sous les yeux pendant la vérification : la reléguer
+        derrière un bouton obligerait à la rouvrir à chaque diplôme contrôlé.
+    {% endcomment %}
+    <div class="panel-card mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 page-section-header">
+            <div>
+                <h4 class="h6 mb-1">Liste des diplômes</h4>
+                <p class="text-muted mb-0 small">
+                    {% if lot.fichier_liste %}
+                        Document remis par l'établissement. Il fait référence en cas de contestation.
+                    {% else %}
+                        Aucun document n'est encore joint à ce lot.
+                    {% endif %}
+                </p>
+            </div>
+            {% if lot.fichier_liste %}
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'diplomas:lot_liste_download' lot.pk %}?consulter=1"
+                       class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">Ouvrir dans un onglet</a>
+                    <a href="{% url 'diplomas:lot_liste_download' lot.pk %}"
+                       class="btn btn-outline-secondary btn-sm">Télécharger</a>
+                </div>
+            {% elif can_manage %}
+                <a href="{% url 'diplomas:lot_edit' lot.pk %}" class="btn btn-primary btn-sm">Joindre la liste</a>
+            {% endif %}
+        </div>
+
+        {% if lot.fichier_liste %}
+            {% if lot.liste_est_pdf %}
+                {% comment %}
+                    Aperçu intégré : object-src est interdit par la politique de
+                    sécurité, seul un cadre de même origine passe.
+                {% endcomment %}
+                <iframe
+                    src="{% url 'diplomas:lot_liste_download' lot.pk %}?consulter=1"
+                    class="diploma-liste-apercu"
+                    title="Liste des diplômes du lot {{ lot.reference }}"
+                    loading="lazy"
+                ></iframe>
+            {% else %}
+                <div class="list-note info mb-0">
+                    <strong>{{ lot.nom_fichier_liste }}</strong>
+                    <span>
+                        Ce document Word ne peut pas s'afficher dans le navigateur.
+                        Téléchargez-le pour le consulter.
+                    </span>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="diploma-empty">
+                <strong>Liste non jointe</strong>
+                <span>
+                    Déposez la liste remise par l'établissement, en PDF ou en Word,
+                    depuis « Modifier la fiche ». Elle restera consultable ici pendant
+                    toute la vérification.
+                </span>
+            </div>
+        {% endif %}
+    </div>
+
     {% if transitions %}
         <div class="panel-card mb-4">
             <div class="panel-header">

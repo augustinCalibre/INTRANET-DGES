@@ -465,22 +465,44 @@ def diploma_delete(request, pk):
 
 @login_required
 def lot_liste_download(request, pk):
-    """Télécharge la liste des diplômes remise avec le lot.
+    """Sert la liste des diplômes remise avec le lot.
 
     La pièce n'est jamais servie en direct depuis le dossier des médias :
     elle passe par cette vue, qui vérifie d'abord que le compte a le droit de
     voir ce lot.
+
+    Avec `?consulter=1`, un PDF s'ouvre dans la page au lieu d'être téléchargé.
+    C'est l'usage courant : on regarde la liste pendant qu'on relève les
+    diplômes non conformes, on ne l'archive pas sur son poste.
+
+    Seul le PDF est affiché ainsi. Un document Word est toujours téléchargé :
+    le navigateur ne sait pas le rendre, et le servir en ligne reviendrait à
+    laisser un fichier déposé décider de la façon dont il est interprété.
     """
     lot = _get_lot_for_workflow(request, pk)
     if not lot.fichier_liste:
         raise Http404("Aucune liste n'est jointe à ce lot.")
 
-    log_activity(request.user, "Téléchargement de la liste d'un lot", "Diplômes", lot.reference)
-    return FileResponse(
+    nom = Path(lot.fichier_liste.name).name
+    est_pdf = nom.lower().endswith(".pdf")
+    consulter = request.GET.get("consulter") == "1" and est_pdf
+
+    if not consulter:
+        log_activity(
+            request.user, "Téléchargement de la liste d'un lot", "Diplômes", lot.reference
+        )
+
+    reponse = FileResponse(
         lot.fichier_liste.open("rb"),
-        as_attachment=True,
-        filename=Path(lot.fichier_liste.name).name,
+        as_attachment=not consulter,
+        filename=nom,
+        content_type="application/pdf" if est_pdf else None,
     )
+    # Le navigateur doit s'en tenir au type annonce et ne pas le deviner a
+    # partir du contenu : c'est ce qui empeche un fichier depose de se faire
+    # passer pour autre chose.
+    reponse["X-Content-Type-Options"] = "nosniff"
+    return reponse
 
 
 # ---------------------------------------------------- recherche et exports
