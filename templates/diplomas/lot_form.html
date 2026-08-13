@@ -18,7 +18,11 @@
             {% endif %}
         </p>
 
-        <form method="post" novalidate>
+        {% comment %}
+            enctype est indispensable : sans lui le navigateur n'envoie pas la
+            liste jointe au lot, et l'enregistrement reussit sans elle.
+        {% endcomment %}
+        <form method="post" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
             {% if form.non_field_errors %}
                 <div class="alert alert-danger">{{ form.non_field_errors }}</div>

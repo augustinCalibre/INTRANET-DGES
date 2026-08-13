@@ -129,7 +129,9 @@ def lot_create(request):
     _require_management(request.user)
 
     if request.method == "POST":
-        form = LotDiplomesForm(request.POST)
+        # request.FILES est indispensable : sans lui la liste jointe au lot
+        # est ignoree en silence, et le formulaire se valide quand meme.
+        form = LotDiplomesForm(request.POST, request.FILES)
         if form.is_valid():
             lot = form.save(commit=False)
             lot.cree_par = request.user
@@ -140,7 +142,13 @@ def lot_create(request):
             log_activity(request.user, "Réception d'un lot de diplômes", "Diplômes", lot.reference)
             messages.success(
                 request,
-                f"Le lot {lot.reference} a été enregistré. Ajoutez maintenant les diplômes reçus.",
+                f"Le lot {lot.reference} a été enregistré."
+                + (
+                    " La liste est consultable sur sa fiche."
+                    if lot.fichier_liste
+                    else " Joignez la liste des diplômes : le vérificateur en a besoin"
+                    " pour contrôler la pile physique."
+                ),
             )
             return redirect("diplomas:lot_detail", pk=lot.pk)
     else:
@@ -166,7 +174,7 @@ def lot_edit(request, pk):
     lot = _get_lot_for_management(request, pk)
 
     if request.method == "POST":
-        form = LotDiplomesForm(request.POST, instance=lot)
+        form = LotDiplomesForm(request.POST, request.FILES, instance=lot)
         if form.is_valid():
             lot = form.save()
             register_lot_history(lot, request.user, "Mise à jour de la fiche du lot", lot.statut, lot.statut)

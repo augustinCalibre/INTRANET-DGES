@@ -668,3 +668,81 @@ class ConformiteSansSaisieTests(TestCase):
         ok, message = apply_transition(lot, Statut.CONFORME, self.agent_etude)
         self.assertFalse(ok)
         self.assertIn("annoncé", message)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class DepotDeLaListeParLaVueTests(TestCase):
+    """Le dépôt réel, de bout en bout, à travers la vue.
+
+    Ces tests existent parce que les précédents validaient le formulaire en
+    lui passant le fichier directement. Ils passaient au vert alors que la
+    fonction était cassée : la vue ne transmettait pas `request.FILES`, et le
+    gabarit ne déclarait pas `enctype`. Le fichier était donc jeté en silence,
+    et l'enregistrement réussissait sans lui.
+    """
+
+    def setUp(self):
+        self.agent_etude = make_user("verificateur", ROLE_AGENT_ETUDE)
+        self.client.force_login(self.agent_etude)
+
+    def _pdf(self):
+        return SimpleUploadedFile(
+            "liste-du-lot.pdf", b"%PDF-1.4 liste", content_type="application/pdf"
+        )
+
+    def _donnees(self):
+        return {
+            "reference": "",
+            "etablissement": "Université Félix Houphouët-Boigny",
+            "date_arrivee": "2026-08-13",
+            "nombre_annonce": 180,
+            "agent_receptionnaire": "",
+            "service_concerne": "",
+            "observation": "",
+        }
+
+    def test_la_liste_est_enregistree_a_la_creation_du_lot(self):
+        donnees = self._donnees()
+        donnees["fichier_liste"] = self._pdf()
+
+        reponse = self.client.post(reverse("diplomas:lot_create"), donnees)
+        self.assertEqual(reponse.status_code, 302)
+
+        lot = LotDiplomes.objects.get()
+        self.assertTrue(lot.fichier_liste, "la liste déposée n'a pas été enregistrée")
+        self.assertIn("liste-du-lot", lot.nom_fichier_liste)
+        self.assertTrue(lot.liste_est_pdf)
+
+    def test_la_liste_peut_etre_ajoutee_apres_coup(self):
+        """Un lot enregistré avant la numérisation de la liste."""
+        self.client.post(reverse("diplomas:lot_create"), self._donnees())
+        lot = LotDiplomes.objects.get()
+        self.assertFalse(lot.fichier_liste)
+
+        donnees = self._donnees()
+        donnees["fichier_liste"] = self._pdf()
+        reponse = self.client.post(reverse("diplomas:lot_edit", args=[lot.pk]), donnees)
+        self.assertEqual(reponse.status_code, 302)
+
+        lot.refresh_from_db()
+        self.assertTrue(lot.fichier_liste)
+
+    def test_le_formulaire_declare_l_envoi_de_fichiers(self):
+        """Sans enctype, le navigateur n'envoie jamais le fichier."""
+        reponse = self.client.get(reverse("diplomas:lot_create"))
+        self.assertContains(reponse, 'enctype="multipart/form-data"')
+
+    def test_la_liste_deposee_est_celle_qu_on_relit(self):
+        """Le contenu servi doit être celui qui a été déposé."""
+        donnees = self._donnees()
+        donnees["fichier_liste"] = SimpleUploadedFile(
+            "liste.pdf", b"%PDF-1.4 contenu-unique-du-lot", content_type="application/pdf"
+        )
+        self.client.post(reverse("diplomas:lot_create"), donnees)
+        lot = LotDiplomes.objects.get()
+
+        reponse = self.client.get(
+            reverse("diplomas:lot_liste_download", args=[lot.pk]), {"consulter": "1"}
+        )
+        self.assertEqual(b"".join(reponse.streaming_content), b"%PDF-1.4 contenu-unique-du-lot")
+        reponse.close()
