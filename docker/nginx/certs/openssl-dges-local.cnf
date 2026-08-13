@@ -14,9 +14,20 @@ basicConstraints = critical,CA:FALSE
 keyUsage = critical,digitalSignature,keyEncipherment
 extendedKeyUsage = serverAuth
 
+# Tous les noms sous lesquels la plateforme peut etre atteinte doivent figurer
+# ici. Un nom absent de cette liste provoque une alerte de non-correspondance
+# en plus de celle du certificat auto-signe : deux avertissements au lieu d'un,
+# et les agents finissent par cliquer sans lire.
+#
+# « intranet-dges.local » est le nom retenu. La variante sans tiret est
+# acceptee aussi : elle se tape naturellement et une adresse refusee pour un
+# tiret manquant coute plus cher qu'une ligne de configuration.
 [alt_names]
 DNS.1 = intranet-dges.local
-DNS.2 = messagerie.dges.local
-IP.1 = 192.168.100.5
-IP.2 = 192.168.100.11
-IP.3 = 127.0.0.1
+DNS.2 = intranetdges.local
+DNS.3 = messagerie.dges.local
+DNS.4 = messageriedges.local
+DNS.5 = localhost
+IP.1 = 127.0.0.1
+IP.2 = 192.168.100.5
+IP.3 = 192.168.100.11

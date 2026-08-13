@@ -38,6 +38,48 @@ docker compose up -d
 
 ---
 
+## Rendre l'intranet accessible par son nom
+
+Un nom en `.local` n'est résolu par aucun serveur DNS : il faut une entrée dans
+le fichier `hosts` de chaque poste qui doit l'utiliser. Un script s'en charge,
+**dans un PowerShell ouvert en administrateur** — le fichier `hosts` est un
+fichier système.
+
+Sur le serveur lui-même :
+
+```powershell
+.\scripts\windows\configurer-nom-local.ps1
+```
+
+Sur un poste du réseau, en indiquant l'adresse du serveur :
+
+```powershell
+.\scripts\windows\configurer-nom-local.ps1 -Adresse 192.168.100.20
+```
+
+Le script conserve une copie du fichier avant modification, retire les entrées
+périmées portant les mêmes noms — une adresse ancienne laissée en place
+empêcherait la résolution sans le dire — puis vide le cache DNS et vérifie que
+chaque nom répond.
+
+Quatre noms sont posés : `intranet-dges.local` et `messagerie.dges.local`,
+ainsi que leurs variantes sans tiret, qui se tapent naturellement.
+
+**La messagerie n'a pas besoin d'un nom distinct** : `https://intranet-dges.local:8443/`
+y mène aussi. Une seule adresse à retenir pour les agents.
+
+Le certificat étant auto-signé, le navigateur avertit au premier accès. Il
+couvre tous ces noms : sans cela s'ajouterait une alerte de non-correspondance,
+et deux avertissements au lieu d'un finissent par se cliquer sans être lus.
+
+Pour revenir en arrière :
+
+```powershell
+.\scripts\windows\configurer-nom-local.ps1 -Retirer
+```
+
+---
+
 ## Mettre à jour : `mettre-a-jour-production.ps1`
 
 Le script enchaîne, dans cet ordre :
