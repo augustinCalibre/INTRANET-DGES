@@ -21,6 +21,9 @@
                 <span class="{{ lot.status_badge_class }} diploma-status-large">{{ lot.get_statut_display }}</span>
                 <div class="d-flex flex-wrap gap-2">
                     <a href="{% url 'diplomas:lot_list' %}" class="btn btn-outline-secondary btn-sm">Retour au registre</a>
+                    {% if lot.fichier_liste %}
+                        <a href="{% url 'diplomas:lot_liste_download' lot.pk %}" class="btn btn-outline-primary btn-sm">Liste des diplômes</a>
+                    {% endif %}
                     <a href="{% url 'diplomas:lot_export' lot.pk %}" class="btn btn-outline-primary btn-sm">Exporter en CSV</a>
                     {% if can_manage %}
                         <a href="{% url 'diplomas:lot_edit' lot.pk %}" class="btn btn-outline-primary btn-sm">Modifier la fiche</a>
@@ -40,22 +43,29 @@
 
         <div class="diploma-metric-grid">
             <div class="diploma-metric">
-                <span>Annoncé</span>
+                <span>Annoncés</span>
                 <strong>{{ lot.nombre_annonce }}</strong>
             </div>
-            <div class="diploma-metric">
-                <span>Enregistré</span>
-                <strong>{{ lot.nombre_enregistre }}</strong>
-            </div>
-            <div class="diploma-metric {% if lot.has_ecart %}is-warning{% endif %}">
-                <span>Écart</span>
-                <strong>{% if lot.has_ecart %}{{ lot.ecart }}{% else %}0{% endif %}</strong>
-                {% if lot.has_ecart %}<small>{{ lot.ecart_label }}</small>{% endif %}
+            {% comment %}
+                Les conformes ne sont pas comptés un à un : c'est la différence
+                entre le nombre annoncé et les anomalies relevées.
+            {% endcomment %}
+            <div class="diploma-metric is-success">
+                <span>Conformes</span>
+                <strong>{{ lot.nombre_conformes }}</strong>
+                <small>validés d'office</small>
             </div>
             <div class="diploma-metric {% if lot.has_anomalies %}is-danger{% endif %}">
-                <span>Anomalies</span>
+                <span>Non conformes</span>
                 <strong>{{ lot.nombre_anomalies }}</strong>
             </div>
+            {% if lot.has_ecart %}
+                <div class="diploma-metric is-warning">
+                    <span>Incohérence</span>
+                    <strong>{{ lot.ecart }}</strong>
+                    <small>{{ lot.ecart_label }}</small>
+                </div>
+            {% endif %}
             {% if lot.date_transmission_dg %}
                 <div class="diploma-metric">
                     <span>Transmis au DG</span>
@@ -135,13 +145,15 @@
             <div class="panel-card">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 page-section-header">
                     <div>
-                        <h4 class="h6 mb-1">Diplômes du lot</h4>
-                        <p class="text-muted mb-0 small">{{ page_obj.paginator.count }} diplôme{{ page_obj.paginator.count|pluralize }} enregistré{{ page_obj.paginator.count|pluralize }}.</p>
+                        <h4 class="h6 mb-1">Diplômes non conformes</h4>
+                        <p class="text-muted mb-0 small">
+                            Seuls les diplômes présentant une anomalie sont saisis. Les
+                            {{ lot.nombre_conformes }} autre{{ lot.nombre_conformes|pluralize }} du lot sont conformes.
+                        </p>
                     </div>
                     {% if can_manage and lot.allows_diploma_edition %}
                         <div class="d-flex flex-wrap gap-2">
-                            <a href="{% url 'diplomas:diploma_import' lot.pk %}" class="btn btn-outline-primary btn-sm">Importer un fichier</a>
-                            <a href="{% url 'diplomas:diploma_create' lot.pk %}" class="btn btn-primary btn-sm">Ajouter un diplôme</a>
+                            <a href="{% url 'diplomas:diploma_create' lot.pk %}" class="btn btn-primary btn-sm">Signaler un diplôme non conforme</a>
                         </div>
                     {% endif %}
                 </div>
@@ -277,7 +289,7 @@
                                             {% if can_manage and lot.allows_diploma_edition and not dq and not dstatut %}
                                                 <div class="d-flex gap-2">
                                                     <a href="{% url 'diplomas:diploma_create' lot.pk %}" class="btn btn-primary btn-sm">Ajouter un diplôme</a>
-                                                    <a href="{% url 'diplomas:diploma_import' lot.pk %}" class="btn btn-outline-primary btn-sm">Importer un fichier</a>
+                                                    <a href="{% url 'diplomas:diploma_create' lot.pk %}" class="btn btn-outline-primary btn-sm">Signaler un diplôme non conforme</a>
                                                 </div>
                                             {% endif %}
                                         </div>

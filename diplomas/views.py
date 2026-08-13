@@ -1,11 +1,11 @@
 import csv
-import json
+from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -19,7 +19,7 @@ from core.permissions import (
 )
 from core.utils import log_activity, paginate, querystring_without, safe_next_url
 
-from .forms import DiplomeForm, DiplomeImportForm, LotDiplomesForm
+from .forms import DiplomeForm, LotDiplomesForm
 from .models import Diplome, LotDiplomes
 from .selectors import (
     get_diploma_status_counts,
@@ -28,8 +28,6 @@ from .selectors import (
     get_visible_lots,
 )
 from .services import (
-    create_diplomas_from_rows,
-    parse_diploma_file,
     register_diploma_history,
     register_lot_history,
 )
@@ -462,73 +460,30 @@ def diploma_delete(request, pk):
     return redirect(safe_next_url(request, request.POST.get("next"), "diplomas:lot_list"))
 
 
-# -------------------------------------------------------------------- import
+# ------------------------------------------------------- liste du lot
 
 
 @login_required
-def diploma_import(request, lot_pk):
-    lot = _get_lot_for_management(request, lot_pk)
-    if not lot.allows_diploma_edition:
-        messages.error(request, "Ce lot est déjà transmis à la signature : l'import est fermé.")
-        return redirect("diplomas:lot_detail", pk=lot.pk)
+def lot_liste_download(request, pk):
+    """Télécharge la liste des diplômes remise avec le lot.
 
-    form = DiplomeImportForm()
-    rows = None
-    resume = None
+    La pièce n'est jamais servie en direct depuis le dossier des médias :
+    elle passe par cette vue, qui vérifie d'abord que le compte a le droit de
+    voir ce lot.
+    """
+    lot = _get_lot_for_workflow(request, pk)
+    if not lot.fichier_liste:
+        raise Http404("Aucune liste n'est jointe à ce lot.")
 
-    if request.method == "POST" and request.POST.get("rows_json"):
-        # Deuxieme etape : l'utilisateur confirme l'apercu affiche.
-        try:
-            confirmed_rows = json.loads(request.POST["rows_json"])
-        except (ValueError, TypeError):
-            confirmed_rows = None
-
-        if not isinstance(confirmed_rows, list) or not confirmed_rows:
-            messages.error(request, "L'aperçu d'import n'a pas pu être relu. Reprenez le dépôt du fichier.")
-        else:
-            created, ignored = create_diplomas_from_rows(lot, confirmed_rows, request.user)
-            log_activity(
-                request.user,
-                f"Import de {created} diplôme(s)",
-                "Diplômes",
-                lot.reference,
-            )
-            if created:
-                message = f"{created} diplôme(s) importé(s) dans le lot {lot.reference}."
-                if ignored:
-                    message += f" {ignored} ligne(s) ignorée(s)."
-                messages.success(request, message)
-            else:
-                messages.warning(request, "Aucun diplôme n'a été importé.")
-            return redirect("diplomas:lot_detail", pk=lot.pk)
-
-    elif request.method == "POST":
-        # Premiere etape : analyse du fichier et construction de l'apercu.
-        form = DiplomeImportForm(request.POST, request.FILES)
-        if form.is_valid():
-            try:
-                rows, resume = parse_diploma_file(form.cleaned_data["fichier"], lot)
-            except ValueError as error:
-                messages.error(request, str(error))
-                rows = None
-                resume = None
-
-    valid_rows = [row for row in rows if row["is_valid"]] if rows else []
-
-    return render(
-        request,
-        "diplomas/diploma_import.html",
-        {
-            "form": form,
-            "lot": lot,
-            "rows": rows,
-            "resume": resume,
-            "valid_rows_json": json.dumps(valid_rows, ensure_ascii=False) if valid_rows else "",
-        },
+    log_activity(request.user, "Téléchargement de la liste d'un lot", "Diplômes", lot.reference)
+    return FileResponse(
+        lot.fichier_liste.open("rb"),
+        as_attachment=True,
+        filename=Path(lot.fichier_liste.name).name,
     )
 
 
-# ------------------------------------------------------------ recherche/export
+# ---------------------------------------------------- recherche et exports
 
 
 @login_required
@@ -593,7 +548,7 @@ def registry_export(request):
             lot.etablissement,
             lot.date_arrivee.strftime("%d/%m/%Y") if lot.date_arrivee else "",
             lot.nombre_annonce,
-            lot.nombre_enregistre,
+            lot.nombre_conformes,
             lot.ecart,
             lot.nombre_anomalies,
             lot.get_statut_display(),
@@ -613,9 +568,9 @@ def registry_export(request):
             "Établissement",
             "Date d'arrivée",
             "Nombre annoncé",
-            "Nombre enregistré",
-            "Écart",
-            "Anomalies",
+            "Conformes",
+            "Incohérence",
+            "Non conformes",
             "Statut",
             "Transmission DG",
             "Signature",

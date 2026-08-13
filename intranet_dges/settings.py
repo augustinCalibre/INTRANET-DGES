@@ -168,7 +168,13 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
+        # Dix caracteres, et non les huit par defaut de Django : c'est la
+        # longueur qu'exige la messagerie. En accepter moins ici laisserait
+        # passer un mot de passe que Nextcloud refuserait ensuite — l'agent
+        # changerait son mot de passe d'intranet et garderait l'ancien dans la
+        # messagerie, sans comprendre pourquoi elle ne s'ouvre plus.
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 10},
     },
     {
         "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",

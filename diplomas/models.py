@@ -1,10 +1,21 @@
+from pathlib import Path
+from uuid import uuid4
+
 from django.contrib.auth.models import User
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
+from django.utils.text import slugify
 
 from accounts.models import Service
 
 REFERENCE_PREFIX = "LOT-DIP"
+
+
+def liste_lot_upload_path(instance, filename):
+    original = Path(filename)
+    base = slugify(original.stem) or "liste"
+    annee = (instance.date_arrivee or timezone.localdate()).year
+    return f"diplomes/listes/{annee}/{base}-{uuid4().hex[:12]}{original.suffix.lower()}"
 
 
 def generate_lot_reference(year=None):
@@ -61,6 +72,15 @@ class LotDiplomes(models.Model):
     etablissement = models.CharField(max_length=180)
     date_arrivee = models.DateField(default=timezone.localdate)
     nombre_annonce = models.PositiveIntegerField(default=0)
+    # La liste remise par l'etablissement, telle qu'elle arrive : un PDF ou un
+    # document Word. Elle n'est pas depouillee ligne a ligne — seuls les
+    # diplomes non conformes sont saisis, le reste etant valide d'office. Le
+    # fichier reste la piece de reference en cas de contestation.
+    fichier_liste = models.FileField(
+        upload_to=liste_lot_upload_path,
+        blank=True,
+        verbose_name="Liste des diplômes",
+    )
     agent_receptionnaire = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -158,27 +178,45 @@ class LotDiplomes(models.Model):
         return self.nombre_anomalies > 0
 
     @property
+    def nombre_conformes(self):
+        """Les diplômes du lot qui n'ont soulevé aucune anomalie.
+
+        Ils ne sont pas saisis un à un : la vérification consiste à relever
+        les diplômes non conformes, et la différence avec le nombre annoncé
+        est conforme d'office. Dépouiller ligne à ligne une liste de deux
+        cents diplômes pour n'en signaler que trois n'a jamais eu de sens.
+        """
+        return max(0, self.nombre_annonce - self.nombre_anomalies)
+
+    @property
     def ecart(self):
-        return self.nombre_enregistre - self.nombre_annonce
+        """Anomalies relevées au-delà du nombre annoncé.
+
+        Toujours nul en temps normal. Une valeur positive dit qu'on a signalé
+        plus de diplômes non conformes que l'établissement n'en a annoncé :
+        c'est le nombre annoncé qui est faux, ou une saisie en double.
+        """
+        return max(0, self.nombre_anomalies - self.nombre_annonce)
 
     @property
     def has_ecart(self):
-        return self.nombre_annonce > 0 and self.ecart != 0
+        return self.nombre_annonce > 0 and self.ecart > 0
 
     @property
     def ecart_label(self):
         if not self.has_ecart:
             return ""
-        ecart = self.ecart
-        if ecart > 0:
-            return f"{ecart} de plus qu'annoncé"
-        return f"{abs(ecart)} manquant{'s' if abs(ecart) > 1 else ''}"
+        return (
+            f"{self.ecart} anomalie{'s' if self.ecart > 1 else ''} de plus "
+            "que le nombre annoncé"
+        )
 
     @property
-    def saisie_progression(self):
+    def taux_conformite(self):
+        """Part des diplômes conformes, en pourcentage."""
         if not self.nombre_annonce:
             return 0
-        return min(100, round(self.nombre_enregistre * 100 / self.nombre_annonce))
+        return max(0, min(100, round(self.nombre_conformes * 100 / self.nombre_annonce)))
 
     @property
     def is_closed(self):

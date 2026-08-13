@@ -15,8 +15,8 @@ from accounts.constants import (
 from accounts.models import Service
 from core.models import Notification
 
+from .forms import LotDiplomesForm
 from .models import Diplome, LotDiplomes, generate_lot_reference
-from .services import create_diplomas_from_rows, parse_diploma_file
 from .workflow import apply_transition, get_available_transitions
 
 Statut = LotDiplomes.Status
@@ -309,6 +309,11 @@ class DiplomaContentTests(TestCase):
         self.assertRedirects(response, reverse("diplomas:lot_detail", args=[self.lot.pk]))
 
     def test_counters_reflect_the_registered_diplomas(self):
+        """Un diplôme saisi sans anomalie ne retire rien aux conformes.
+
+        Le lot annonce trois diplômes. Un seul est signalé non conforme : les
+        deux autres le sont d'office, qu'ils aient ou non une fiche.
+        """
         Diplome.objects.create(lot=self.lot, nom_beneficiaire="Awa Mbala", numero_diplome="D-001")
         Diplome.objects.create(
             lot=self.lot,
@@ -318,10 +323,10 @@ class DiplomaContentTests(TestCase):
             anomalie=Diplome.Anomalie.MANQUANT,
         )
 
-        self.assertEqual(self.lot.nombre_enregistre, 2)
         self.assertEqual(self.lot.nombre_anomalies, 1)
-        self.assertEqual(self.lot.ecart, -1)
-        self.assertTrue(self.lot.has_ecart)
+        self.assertEqual(self.lot.nombre_conformes, 2)
+        self.assertEqual(self.lot.ecart, 0)
+        self.assertFalse(self.lot.has_ecart)
         self.assertTrue(self.lot.has_anomalies)
 
     def test_etablissement_falls_back_on_the_lot(self):
@@ -330,107 +335,148 @@ class DiplomaContentTests(TestCase):
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
-class DiplomaImportTests(TestCase):
+class ListeDuLotTests(TestCase):
+    """La liste arrive en PDF ou en Word, et n'est pas dépouillée.
+
+    Les établissements ne produisent pas de tableur : exiger un format qu'on
+    ne reçoit jamais revient à n'avoir aucune liste. Elle est donc jointe
+    telle quelle, comme pièce de référence.
+    """
+
     def setUp(self):
         self.agent_etude = make_user("verificateur", ROLE_AGENT_ETUDE)
-        self.lot = LotDiplomes.objects.create(etablissement="Université de Kinshasa", nombre_annonce=3)
-
-    def _csv_file(self, content, name="lot.csv"):
-        return SimpleUploadedFile(name, content.encode("utf-8"), content_type="text/csv")
-
-    def test_csv_with_semicolons_and_accents_is_parsed(self):
-        uploaded = self._csv_file(
-            "Nom;Numéro;Filière;Année\n"
-            "Awa Mbala;D-001;Droit;2024-2025\n"
-            "Jean Kalala;D-002;Économie;2024-2025\n"
+        self.agent_isole = make_user("isole", ROLE_AGENT)
+        self.lot = LotDiplomes.objects.create(
+            etablissement="Université de Kinshasa", nombre_annonce=3
         )
-        rows, resume = parse_diploma_file(uploaded, self.lot)
 
-        self.assertEqual(resume["total"], 2)
-        self.assertEqual(resume["valides"], 2)
-        self.assertEqual(rows[0]["data"]["nom_beneficiaire"], "Awa Mbala")
-        self.assertEqual(rows[0]["data"]["filiere"], "Droit")
+    def _fichier(self, nom="liste.pdf", taille=1024):
+        return SimpleUploadedFile(nom, b"x" * taille, content_type="application/pdf")
 
-    def test_missing_required_columns_is_reported(self):
-        uploaded = self._csv_file("Filière;Année\nDroit;2024-2025\n")
-        with self.assertRaises(ValueError) as error:
-            parse_diploma_file(uploaded, self.lot)
-        self.assertIn("Colonnes obligatoires", str(error.exception))
+    def _donnees_lot(self, **extra):
+        donnees = {
+            "reference": "",
+            "etablissement": "Université de Kinshasa",
+            "date_arrivee": "2026-08-13",
+            "nombre_annonce": 3,
+            "agent_receptionnaire": "",
+            "service_concerne": "",
+            "observation": "",
+        }
+        donnees.update(extra)
+        return donnees
 
-    def test_rows_without_a_number_are_rejected(self):
-        uploaded = self._csv_file("Nom;Numéro\nAwa Mbala;\nJean Kalala;D-002\n")
-        rows, resume = parse_diploma_file(uploaded, self.lot)
+    def test_une_liste_pdf_est_acceptee(self):
+        formulaire = LotDiplomesForm(
+            data=self._donnees_lot(), files={"fichier_liste": self._fichier("liste.pdf")}
+        )
+        self.assertTrue(formulaire.is_valid(), formulaire.errors)
 
-        self.assertEqual(resume["valides"], 1)
-        self.assertEqual(resume["rejetes"], 1)
-        self.assertFalse(rows[0]["is_valid"])
+    def test_une_liste_word_est_acceptee(self):
+        for nom in ("liste.doc", "liste.docx"):
+            formulaire = LotDiplomesForm(
+                data=self._donnees_lot(), files={"fichier_liste": self._fichier(nom)}
+            )
+            self.assertTrue(formulaire.is_valid(), f"{nom} : {formulaire.errors}")
 
-    def test_duplicates_inside_the_file_are_rejected(self):
-        uploaded = self._csv_file("Nom;Numéro\nAwa Mbala;D-001\nAwa Mbala;D-001\n")
-        rows, resume = parse_diploma_file(uploaded, self.lot)
+    def test_un_tableur_est_refuse(self):
+        """Le format qu'on ne reçoit jamais et qui bloquait l'enregistrement."""
+        for nom in ("liste.xlsx", "liste.csv"):
+            formulaire = LotDiplomesForm(
+                data=self._donnees_lot(), files={"fichier_liste": self._fichier(nom)}
+            )
+            self.assertFalse(formulaire.is_valid(), nom)
+            self.assertIn("fichier_liste", formulaire.errors)
 
-        self.assertEqual(resume["valides"], 1)
-        self.assertIn("doublon", rows[1]["errors"][0])
+    def test_un_fichier_trop_lourd_est_refuse(self):
+        formulaire = LotDiplomesForm(
+            data=self._donnees_lot(),
+            files={"fichier_liste": self._fichier("liste.pdf", taille=11 * 1024 * 1024)},
+        )
+        self.assertFalse(formulaire.is_valid())
 
-    def test_numbers_already_present_in_the_lot_are_rejected(self):
-        Diplome.objects.create(lot=self.lot, nom_beneficiaire="Awa Mbala", numero_diplome="D-001")
-        uploaded = self._csv_file("Nom;Numéro\nAwa Mbala;D-001\n")
-        rows, _ = parse_diploma_file(uploaded, self.lot)
+    def test_la_liste_n_est_pas_obligatoire(self):
+        """Un lot peut être enregistré avant que la liste ne soit numérisée."""
+        formulaire = LotDiplomesForm(data=self._donnees_lot())
+        self.assertTrue(formulaire.is_valid(), formulaire.errors)
 
-        self.assertFalse(rows[0]["is_valid"])
-        self.assertIn("existe deja", rows[0]["errors"][0])
-
-    def test_unsupported_extension_is_refused(self):
-        uploaded = SimpleUploadedFile("lot.pdf", b"%PDF-1.4", content_type="application/pdf")
-        with self.assertRaises(ValueError):
-            parse_diploma_file(uploaded, self.lot)
-
-    def test_creation_from_preview_rows(self):
-        rows = [
-            {"data": {"nom_beneficiaire": "Awa Mbala", "numero_diplome": "D-001", "filiere": "Droit"}},
-            {"data": {"nom_beneficiaire": "Jean Kalala", "numero_diplome": "D-002"}},
-            {"data": {"nom_beneficiaire": "", "numero_diplome": "D-003"}},
-        ]
-        created, ignored = create_diplomas_from_rows(self.lot, rows, self.agent_etude)
-
-        self.assertEqual(created, 2)
-        self.assertEqual(ignored, 1)
-        self.assertEqual(self.lot.diplomes.count(), 2)
-
-    def test_import_flow_shows_a_preview_before_saving(self):
+    def test_le_telechargement_passe_par_une_vue_controlee(self):
+        self.lot.fichier_liste.save("liste.pdf", self._fichier(), save=True)
         self.client.force_login(self.agent_etude)
-        response = self.client.post(
-            reverse("diplomas:diploma_import", args=[self.lot.pk]),
-            {"fichier": self._csv_file("Nom;Numéro\nAwa Mbala;D-001\n")},
+        reponse = self.client.get(reverse("diplomas:lot_liste_download", args=[self.lot.pk]))
+        self.assertEqual(reponse.status_code, 200)
+        reponse.close()
+
+    def test_un_lot_sans_liste_renvoie_404(self):
+        self.client.force_login(self.agent_etude)
+        reponse = self.client.get(reverse("diplomas:lot_liste_download", args=[self.lot.pk]))
+        self.assertEqual(reponse.status_code, 404)
+
+    def test_un_agent_sans_acces_n_obtient_pas_la_liste(self):
+        self.lot.fichier_liste.save("liste.pdf", self._fichier(), save=True)
+        self.client.force_login(self.agent_isole)
+        reponse = self.client.get(reverse("diplomas:lot_liste_download", args=[self.lot.pk]))
+        self.assertIn(reponse.status_code, (403, 404))
+
+
+class ConformiteDuLotTests(TestCase):
+    """Seuls les non conformes sont saisis ; la différence est conforme.
+
+    C'est le cœur du nouveau mode de vérification : dépouiller deux cents
+    lignes pour n'en signaler que trois n'a jamais eu de sens.
+    """
+
+    def setUp(self):
+        self.lot = LotDiplomes.objects.create(
+            etablissement="Université de Kinshasa", nombre_annonce=200
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Vérifier l'aperçu")
-        self.assertEqual(self.lot.diplomes.count(), 0, "L'aperçu ne doit rien enregistrer.")
-
-    def test_xlsx_import_when_openpyxl_is_available(self):
-        try:
-            from openpyxl import Workbook
-        except ImportError:
-            self.skipTest("openpyxl n'est pas installé dans cet environnement.")
-
-        workbook = Workbook()
-        worksheet = workbook.active
-        worksheet.append(["Nom", "Numero", "Filiere"])
-        worksheet.append(["Awa Mbala", "D-001", "Droit"])
-        buffer = BytesIO()
-        workbook.save(buffer)
-        buffer.seek(0)
-
-        uploaded = SimpleUploadedFile(
-            "lot.xlsx",
-            buffer.read(),
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    def _signaler_non_conforme(self, numero):
+        return Diplome.objects.create(
+            lot=self.lot,
+            nom_beneficiaire=f"Agent {numero}",
+            numero_diplome=numero,
+            statut=Diplome.Status.NON_CONFORME,
+            anomalie=Diplome.Anomalie.PIECE_NON_CONFORME,
         )
-        rows, resume = parse_diploma_file(uploaded, self.lot)
 
-        self.assertEqual(resume["valides"], 1)
-        self.assertEqual(rows[0]["data"]["numero_diplome"], "D-001")
+    def test_sans_anomalie_tout_le_lot_est_conforme(self):
+        self.assertEqual(self.lot.nombre_conformes, 200)
+        self.assertEqual(self.lot.nombre_anomalies, 0)
+        self.assertFalse(self.lot.has_ecart)
+
+    def test_les_conformes_sont_la_difference(self):
+        self._signaler_non_conforme("D-001")
+        self._signaler_non_conforme("D-002")
+        self._signaler_non_conforme("D-003")
+        self.assertEqual(self.lot.nombre_anomalies, 3)
+        self.assertEqual(self.lot.nombre_conformes, 197)
+
+    def test_le_taux_de_conformite_suit(self):
+        for numero in range(1, 21):
+            self._signaler_non_conforme(f"D-{numero:03d}")
+        self.assertEqual(self.lot.nombre_conformes, 180)
+        self.assertEqual(self.lot.taux_conformite, 90)
+
+    def test_plus_d_anomalies_que_d_annonces_est_signale(self):
+        """Le nombre annoncé est faux, ou une saisie est en double."""
+        lot = LotDiplomes.objects.create(etablissement="ISP Gombe", nombre_annonce=2)
+        for numero in range(1, 4):
+            Diplome.objects.create(
+                lot=lot,
+                nom_beneficiaire=f"Agent {numero}",
+                numero_diplome=f"E-{numero}",
+                statut=Diplome.Status.NON_CONFORME,
+                anomalie=Diplome.Anomalie.PIECE_NON_CONFORME,
+            )
+        self.assertTrue(lot.has_ecart)
+        self.assertEqual(lot.ecart, 1)
+        self.assertEqual(lot.nombre_conformes, 0)
+
+    def test_un_lot_sans_nombre_annonce_ne_divise_pas_par_zero(self):
+        lot = LotDiplomes.objects.create(etablissement="ISP Gombe", nombre_annonce=0)
+        self.assertEqual(lot.taux_conformite, 0)
+        self.assertEqual(lot.nombre_conformes, 0)
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

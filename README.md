@@ -141,6 +141,13 @@ Réservé à l'administrateur, avec l'annuaire ouvert en lecture au Directeur G�
 Le changement de son propre mot de passe reste accessible à tout agent depuis
 `/accounts/mot-de-passe/`.
 
+**Dix caractères au minimum**, et non les huit par défaut de Django : c'est la longueur
+qu'exige la messagerie. En accepter moins ici laisserait passer un mot de passe que
+Nextcloud refuserait ensuite — l'agent changerait son mot de passe d'intranet et
+garderait l'ancien dans la messagerie, sans comprendre pourquoi elle ne s'ouvre plus.
+Si la propagation échoue malgré tout, la page le dit comme une erreur et non comme un
+simple avertissement.
+
 ## Tableau de bord
 
 - ce qui attend une décision passe en premier : courriers à viser, lots à signer,
@@ -404,9 +411,16 @@ Module de suivi des diplômes soumis à la signature du Directeur Général.
 - registre des lots d'arrivée, filtrable et paginé, avec compteurs par statut ;
 - référence automatique `LOT-DIP-année-numéro`, ou saisie manuelle ;
 - établissement d'origine, date d'arrivée, nombre annoncé, agent réceptionnaire ;
-- écart entre le nombre annoncé et le nombre réellement enregistré, affiché en permanence ;
-- saisie des diplômes un par un, ou import d'un fichier `.csv` / `.xlsx` avec aperçu ligne
-  par ligne avant enregistrement (aucune écriture avant validation) ;
+- **la liste des diplômes est jointe telle qu'elle arrive**, en PDF ou en Word. Les
+  établissements ne produisent pas de tableur : exiger un format qu'on ne reçoit jamais
+  revenait à n'avoir aucune liste. Elle sert de pièce de référence et se télécharge par
+  une vue contrôlée, jamais servie en direct ;
+- **seuls les diplômes non conformes sont saisis.** La différence avec le nombre annoncé
+  est conforme d'office : dépouiller deux cents lignes pour n'en signaler que trois n'a
+  jamais eu de sens. La fiche affiche les trois nombres — annoncés, conformes, non
+  conformes ;
+- un compteur d'**incohérence** apparaît si l'on signale plus d'anomalies que le nombre
+  annoncé : c'est alors ce nombre qui est faux, ou une saisie qui fait double emploi ;
 - signalement d'anomalies : diplôme manquant, erreur de nom, référence incorrecte,
   pièce non conforme ;
 - circuit de traitement : reçu → en vérification → conforme → transmis au DG → signé →

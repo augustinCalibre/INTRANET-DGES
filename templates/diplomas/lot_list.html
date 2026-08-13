@@ -100,7 +100,7 @@
                         <th>Référence</th>
                         <th>Établissement</th>
                         <th>Arrivée</th>
-                        <th>Saisie</th>
+                        <th>Conformité</th>
                         <th>Anomalies</th>
                         <th>Statut</th>
                         <th></th>
@@ -117,11 +117,11 @@
                             </td>
                             <td data-label="Établissement">{{ lot.etablissement }}</td>
                             <td data-label="Arrivée">{{ lot.date_arrivee|date:"d/m/Y" }}</td>
-                            <td data-label="Saisie">
+                            <td data-label="Conformité">
                                 <div class="diploma-count-cell">
-                                    <span>{{ lot.nombre_enregistre }} / {{ lot.nombre_annonce }}</span>
+                                    <span>{{ lot.nombre_conformes }} / {{ lot.nombre_annonce }} conformes</span>
                                     <div class="diploma-progress" role="presentation">
-                                        <div class="diploma-progress-bar" style="width: {{ lot.saisie_progression }}%"></div>
+                                        <div class="diploma-progress-bar" style="width: {{ lot.taux_conformite }}%"></div>
                                     </div>
                                     {% if lot.has_ecart %}
                                         <small class="diploma-ecart">{{ lot.ecart_label }}</small>

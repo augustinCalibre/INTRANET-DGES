@@ -7,9 +7,13 @@ from accounts.models import Service
 from core.forms import AgentModelChoiceField, StyledFormMixin
 
 from .models import Diplome, LotDiplomes
-from .services import SUPPORTED_IMPORT_EXTENSIONS
 
-MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024
+# La liste arrive telle que l'etablissement la produit : un PDF, ou un
+# document Word. Aucun tableur n'est demande — les etablissements n'en
+# fournissent pas, et exiger un format qu'on ne recoit jamais revient a
+# n'avoir aucune liste du tout.
+EXTENSIONS_LISTE = (".pdf", ".doc", ".docx")
+MAX_TAILLE_LISTE = 10 * 1024 * 1024
 
 
 class LotDiplomesForm(StyledFormMixin, forms.ModelForm):
@@ -32,6 +36,7 @@ class LotDiplomesForm(StyledFormMixin, forms.ModelForm):
             "etablissement",
             "date_arrivee",
             "nombre_annonce",
+            "fichier_liste",
             "agent_receptionnaire",
             "service_concerne",
             "observation",
@@ -40,15 +45,18 @@ class LotDiplomesForm(StyledFormMixin, forms.ModelForm):
             "reference": "Référence du lot",
             "etablissement": "Établissement d'origine",
             "nombre_annonce": "Nombre de diplômes annoncé",
+            "fichier_liste": "Liste des diplômes (PDF ou Word)",
             "service_concerne": "Service concerné",
             "observation": "Observation",
         }
         help_texts = {
             "reference": "Laisser vide pour une attribution automatique (LOT-DIP-année-numéro).",
             "nombre_annonce": "Nombre déclaré par l'établissement à la remise du lot.",
+            "fichier_liste": "La liste remise avec le lot, telle quelle. Elle sert de pièce de référence : elle n'est pas dépouillée ligne à ligne.",
         }
         widgets = {
             "observation": forms.Textarea(attrs={"rows": 3}),
+            "fichier_liste": forms.FileInput(attrs={"accept": ".pdf,.doc,.docx"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -73,6 +81,26 @@ class LotDiplomesForm(StyledFormMixin, forms.ModelForm):
         if duplicates.exists():
             raise forms.ValidationError("Cette référence de lot est déjà utilisée.")
         return reference
+
+    def clean_fichier_liste(self):
+        fichier = self.cleaned_data.get("fichier_liste")
+        # Un champ de fichier inchangé rend l'objet déjà enregistré : rien à
+        # revalider dans ce cas, le fichier a passé ce contrôle à son dépôt.
+        if not fichier or not hasattr(fichier, "size"):
+            return fichier
+
+        extension = Path(fichier.name).suffix.lower()
+        if extension not in EXTENSIONS_LISTE:
+            raise forms.ValidationError(
+                f"Format non pris en charge. Déposez la liste en "
+                f"{' ou '.join(e.lstrip('.').upper() for e in EXTENSIONS_LISTE)}."
+            )
+        if fichier.size > MAX_TAILLE_LISTE:
+            mega = MAX_TAILLE_LISTE // (1024 * 1024)
+            raise forms.ValidationError(
+                f"Le fichier dépasse la taille maximale autorisée de {mega} Mo."
+            )
+        return fichier
 
 
 class DiplomeForm(StyledFormMixin, forms.ModelForm):
@@ -143,23 +171,3 @@ class DiplomeForm(StyledFormMixin, forms.ModelForm):
             cleaned_data["anomalie"] = ""
 
         return cleaned_data
-
-
-class DiplomeImportForm(forms.Form):
-    fichier = forms.FileField(
-        label="Fichier des diplômes",
-        help_text=f"Formats acceptés : {', '.join(SUPPORTED_IMPORT_EXTENSIONS)}. Taille maximale : 5 Mo.",
-        widget=forms.FileInput(attrs={"class": "form-control", "accept": ".csv,.xlsx"}),
-    )
-
-    def clean_fichier(self):
-        uploaded_file = self.cleaned_data["fichier"]
-        extension = Path(uploaded_file.name).suffix.lower()
-
-        if extension not in SUPPORTED_IMPORT_EXTENSIONS:
-            raise forms.ValidationError(
-                f"Format non pris en charge. Fournissez un fichier {' ou '.join(SUPPORTED_IMPORT_EXTENSIONS)}."
-            )
-        if uploaded_file.size > MAX_IMPORT_FILE_SIZE:
-            raise forms.ValidationError("Le fichier dépasse la taille maximale autorisée de 5 Mo.")
-        return uploaded_file

@@ -17,7 +17,8 @@ class LotDiplomesAdmin(admin.ModelAdmin):
         "etablissement",
         "date_arrivee",
         "nombre_annonce",
-        "display_nombre_enregistre",
+        "display_nombre_conformes",
+        "display_nombre_anomalies",
         "statut",
         "agent_receptionnaire",
     )
@@ -29,8 +30,11 @@ class LotDiplomesAdmin(admin.ModelAdmin):
     ordering = ("-date_arrivee",)
 
     @admin.display(description="Enregistrés")
-    def display_nombre_enregistre(self, obj):
-        return obj.nombre_enregistre
+    def display_nombre_conformes(self, obj):
+        return obj.nombre_conformes
+
+    def display_nombre_anomalies(self, obj):
+        return obj.nombre_anomalies
 
 
 @admin.register(Diplome)

@@ -346,12 +346,21 @@ def password_change(request):
                 request.user, mot_de_passe=form.cleaned_data.get("new_password1")
             )
             log_activity(request.user, "Changement de mot de passe", "Comptes", request.user.username)
-            messages.success(
-                request,
-                "Votre mot de passe a été modifié. Il vaut aussi pour la messagerie.",
-            )
             if avertissement:
-                messages.warning(request, avertissement)
+                # Ici l'avertissement vaut erreur : les deux mots de passe ont
+                # diverge. L'agent doit savoir qu'il entrera dans la messagerie
+                # avec l'ancien, sans quoi il conclura qu'elle est en panne.
+                messages.error(
+                    request,
+                    "Votre mot de passe d'intranet a été modifié, mais celui de la "
+                    "messagerie n'a pas pu l'être : elle attend donc toujours votre "
+                    "ancien mot de passe. Signalez-le à l'ingénieur informatique.",
+                )
+            else:
+                messages.success(
+                    request,
+                    "Votre mot de passe a été modifié. Il vaut aussi pour la messagerie.",
+                )
             return redirect("dashboard:home")
     else:
         form = MotDePasseChangeForm(user=request.user)
