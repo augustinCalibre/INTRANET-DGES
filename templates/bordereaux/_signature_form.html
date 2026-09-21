@@ -1,0 +1,45 @@
+{% comment %}
+    Formulaire de signature, partagé par l'engagement et la liquidation.
+    Attend : etape (engagement|liquidation), libelle, confirmation.
+{% endcomment %}
+<form
+    method="post"
+    action="{% url 'bordereaux:signer' bordereau.pk etape %}"
+    class="bordereau-signature-form"
+    data-confirm-form="{{ confirmation }}"
+    data-confirm-title="{{ libelle }}"
+    data-confirm-accept="{{ libelle }}"
+    novalidate
+>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{% url 'bordereaux:detail' bordereau.pk %}">
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label" for="dateSignature{{ etape }}">Date de signature</label>
+            <input
+                type="text"
+                id="dateSignature{{ etape }}"
+                class="form-control"
+                name="date_signature"
+                value="{{ signature_form.date_signature.value|date:'Y-m-d' }}"
+                data-flatpickr="date"
+                autocomplete="off"
+                placeholder="JJ/MM/AAAA"
+                required
+            >
+        </div>
+        <div class="col-md-5">
+            <label class="form-label" for="commentaire{{ etape }}">Observation</label>
+            <input
+                type="text"
+                id="commentaire{{ etape }}"
+                class="form-control"
+                name="commentaire"
+                placeholder="Facultative"
+            >
+        </div>
+        <div class="col-md-3 d-grid align-self-end">
+            <button type="submit" class="btn btn-primary">{{ libelle }}</button>
+        </div>
+    </div>
+</form>

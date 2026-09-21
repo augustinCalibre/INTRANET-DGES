@@ -14,6 +14,7 @@ urlpatterns = [
     path("documents/", include(("documents.urls", "documents"), namespace="documents")),
     path("meetings/", include(("meetings.urls", "meetings"), namespace="meetings")),
     path("diplomes/", include(("diplomas.urls", "diplomas"), namespace="diplomas")),
+    path("bordereaux/", include(("bordereaux.urls", "bordereaux"), namespace="bordereaux")),
     path("courriers/", include(("courriers.urls", "courriers"), namespace="courriers")),
     path(
         "exploitation/",

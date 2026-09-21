@@ -28,7 +28,7 @@ from .models import (
     generate_courrier_reference,
     normaliser_nom,
 )
-from .services import build_imputation_grid
+from .services import build_imputation_grid, decouper_en_rangees
 from .workflow import apply_transition, get_available_transitions
 
 Statut = Courrier.Status
@@ -1106,3 +1106,43 @@ class DechargeTests(TestCase):
         self.client.force_login(self.agent_isole)
         reponse = self.client.get(reverse("courriers:decharge", args=[self.sortant.pk]))
         self.assertIn(reponse.status_code, (403, 404))
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class GrilleImputationsTests(TestCase):
+    """La grille imprimee s'ecoule sur plusieurs rangees.
+
+    Tous les services sur une seule ligne divisaient la largeur de la page
+    par leur nombre : passe quatre ou cinq, les noms se chevauchaient.
+    """
+
+    def test_les_colonnes_se_repartissent_par_trois(self):
+        colonnes = [{"service": f"S{index}"} for index in range(8)]
+
+        rangees = decouper_en_rangees(colonnes)
+
+        self.assertEqual(len(rangees), 3)
+        self.assertTrue(all(len(rangee) == 3 for rangee in rangees))
+
+    def test_la_derniere_rangee_est_completee_de_cases_vides(self):
+        rangees = decouper_en_rangees([{"service": f"S{index}"} for index in range(8)])
+
+        self.assertEqual(rangees[-1][-1], None)
+        self.assertIsNotNone(rangees[-1][0])
+
+    def test_aucune_colonne_n_est_perdue_ni_dupliquee(self):
+        colonnes = [{"service": f"S{index}"} for index in range(7)]
+
+        rangees = decouper_en_rangees(colonnes)
+        restituees = [case for rangee in rangees for case in rangee if case is not None]
+
+        self.assertEqual(restituees, colonnes)
+
+    def test_une_rangee_pleine_ne_recoit_aucun_complement(self):
+        rangees = decouper_en_rangees([{"service": f"S{index}"} for index in range(6)])
+
+        self.assertEqual(len(rangees), 2)
+        self.assertNotIn(None, rangees[0] + rangees[1])
+
+    def test_sans_service_la_grille_reste_vide(self):
+        self.assertEqual(decouper_en_rangees([]), [])

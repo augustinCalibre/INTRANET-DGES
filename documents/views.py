@@ -16,6 +16,11 @@ from core.utils import log_activity, safe_next_url
 from .forms import DocumentForm
 from .models import Document
 from .selectors import get_visible_documents
+from .services import (
+    get_destinataires,
+    marquer_notifications_lues,
+    notifier_diffusion,
+)
 
 
 def _document_type_label(type_value):
@@ -34,6 +39,8 @@ def document_list(request):
     period_filter = request.GET.get("periode", "").strip()
     search_term = request.GET.get("q", "").strip()
     documents = get_visible_documents(request.user)
+    # Ouvrir la liste vaut prise de connaissance : le badge du menu retombe.
+    marquer_notifications_lues(request.user)
     active_filter_label = ""
     is_courrier_view = type_filter == Document.Type.COURRIER
 
@@ -84,8 +91,22 @@ def document_create(request):
             document = form.save(commit=False)
             document.auteur = request.user
             document.save()
+            # `commit=False` laisse les relations multiples de cote : sans cet
+            # appel, les agents destinataires seraient perdus en silence.
+            form.save_m2m()
+            avertis = notifier_diffusion(document, request.user)
             log_activity(request.user, "Ajout d'un document", "Documents", document.titre)
-            messages.success(request, "Le document a ete ajoute.")
+            messages.success(
+                request,
+                "Le document a ete ajoute."
+                + (
+                    f" {avertis} agent{'s' if avertis > 1 else ''} "
+                    f"{'ont' if avertis > 1 else 'a'} été prévenu"
+                    f"{'s' if avertis > 1 else ''}."
+                    if avertis
+                    else " Aucun destinataire n'a été renseigné : vous êtes seul à le voir."
+                ),
+            )
             if document.type_document == Document.Type.COURRIER:
                 return redirect(f"{reverse('documents:list')}?type={Document.Type.COURRIER}")
             return redirect("documents:list")
@@ -127,6 +148,9 @@ def document_edit(request, pk):
 
     document = get_object_or_404(get_visible_documents(request.user), pk=pk)
     previous_file_name = document.fichier.name if document.fichier else ""
+    # Qui recevait deja ce document avant modification : seuls les agents qui
+    # s'ajoutent seront avertis, une correction de titre ne renotifie personne.
+    destinataires_avant = set(get_destinataires(document).values_list("pk", flat=True))
 
     if request.method == "POST":
         form = DocumentForm(request.POST, request.FILES, instance=document, user=request.user)
@@ -134,6 +158,8 @@ def document_edit(request, pk):
             document = form.save(commit=False)
             document.auteur = document.auteur or request.user
             document.save()
+            form.save_m2m()
+            notifier_diffusion(document, request.user, deja_avertis=destinataires_avant)
             if (
                 form.cleaned_data.get("fichier")
                 and previous_file_name

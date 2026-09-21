@@ -23,7 +23,12 @@ from core.utils import log_activity, paginate, querystring_without, safe_next_ur
 from .forms import CourrierForm, FicheAnalyseForm
 from .models import Courrier, InstructionCourrier
 from .selectors import get_status_counts, get_visible_courriers
-from .services import build_imputation_grid, create_tasks_from_imputations, register_history
+from .services import (
+    build_imputation_grid,
+    create_tasks_from_imputations,
+    decouper_en_rangees,
+    register_history,
+)
 from .workflow import apply_transition, get_available_transitions
 
 COURRIERS_PER_PAGE = 25
@@ -356,7 +361,7 @@ def courrier_fiche_print(request, pk):
         "courriers/fiche_print.html",
         {
             "courrier": courrier,
-            "grille_imputations": grille,
+            "rangees_imputations": decouper_en_rangees(grille),
             "instructions": [
                 {"objet": instruction, "cochee": instruction.pk in instructions_cochees}
                 for instruction in InstructionCourrier.objects.filter(actif=True)

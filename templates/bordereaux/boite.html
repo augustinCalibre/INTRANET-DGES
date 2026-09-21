@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% load bordereaux_extras %}
+
+{% block title %}{{ organisme.libelle_court }} {{ trimestre_label }} {{ annee }} | Intranet DGES{% endblock %}
+{% block page_title %}{{ organisme.libelle_court }} — {{ trimestre_label }} {{ annee }}{% endblock %}
+
+{% block content %}
+    <div class="panel-card">
+        <nav class="bordereau-breadcrumb" aria-label="Fil d'ariane">
+            <a href="{% url 'bordereaux:tableau_annee' annee %}">Suivi {{ annee }}</a>
+            <span aria-hidden="true">/</span>
+            <span>{{ organisme.libelle_court }}</span>
+            <span aria-hidden="true">/</span>
+            <span>{{ trimestre_label }}</span>
+        </nav>
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">{{ organisme.libelle_complet }}</h3>
+                <p class="text-muted mb-0">
+                    {{ trimestre_label }} {{ annee }} — {{ periode }}.
+                    {{ compteurs.total }} bordereau{{ compteurs.total|pluriel:"x" }} dans cette boîte,
+                    dont {{ compteurs.termines }} terminé{{ compteurs.termines|pluriel }},
+                    {{ compteurs.en_cours }} en cours après engagement
+                    et {{ compteurs.attente }} en attente d'engagement.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 page-actions">
+                <a
+                    href="{% url 'bordereaux:export_annee' annee %}?trimestre={{ trimestre }}&organisme={{ organisme.pk }}"
+                    class="btn btn-outline-primary"
+                >Exporter la boîte</a>
+                {% if can_manage %}
+                    <a
+                        href="{% url 'bordereaux:create' %}?organisme={{ organisme.pk }}&annee={{ annee }}&trimestre={{ trimestre }}&next={{ request.get_full_path|urlencode }}"
+                        class="btn btn-primary"
+                    >Ajouter un bordereau</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="bordereau-status-strip" role="list">
+            <a
+                href="{% url 'bordereaux:boite' annee trimestre organisme.pk %}"
+                class="bordereau-status-chip {% if not etat_filtre %}is-active{% endif %}"
+                role="listitem"
+            >
+                <span>Tous</span>
+                <strong>{{ compteurs.total }}</strong>
+            </a>
+            <a
+                href="{% url 'bordereaux:boite' annee trimestre organisme.pk %}?etat=termine"
+                class="bordereau-status-chip is-termine {% if etat_filtre == 'termine' %}is-active{% endif %}"
+                role="listitem"
+            >
+                <span>Terminés</span>
+                <strong>{{ compteurs.termines }}</strong>
+            </a>
+            <a
+                href="{% url 'bordereaux:boite' annee trimestre organisme.pk %}?etat=en_cours"
+                class="bordereau-status-chip is-encours {% if etat_filtre == 'en_cours' %}is-active{% endif %}"
+                role="listitem"
+            >
+                <span>En cours</span>
+                <strong>{{ compteurs.en_cours }}</strong>
+            </a>
+            <a
+                href="{% url 'bordereaux:boite' annee trimestre organisme.pk %}?etat=attente_engagement"
+                class="bordereau-status-chip is-attente {% if etat_filtre == 'attente_engagement' %}is-active{% endif %}"
+                role="listitem"
+            >
+                <span>Engagement en attente</span>
+                <strong>{{ compteurs.attente }}</strong>
+            </a>
+        </div>
+
+        <form method="get" class="row g-3 mb-4">
+            {% if etat_filtre %}<input type="hidden" name="etat" value="{{ etat_filtre }}">{% endif %}
+            <div class="col-lg-6">
+                <label class="form-label" for="bordereauSearch">Recherche</label>
+                <input
+                    type="text"
+                    id="bordereauSearch"
+                    class="form-control"
+                    name="q"
+                    value="{{ recherche }}"
+                    placeholder="Numéro de bordereau ou observation"
+                >
+            </div>
+            <div class="col-lg-3 d-grid align-self-end">
+                <button type="submit" class="btn btn-outline-primary">Filtrer</button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table align-middle stacked-mobile-table">
+                <thead>
+                    <tr>
+                        <th>N° bordereau</th>
+                        <th>Engagement</th>
+                        <th>Liquidation</th>
+                        <th>Mandat déduit</th>
+                        <th>État</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bordereau in bordereaux %}
+                        <tr>
+                            <td data-label="N° bordereau">
+                                <a href="{% url 'bordereaux:detail' bordereau.pk %}" class="bordereau-reference {% if not bordereau.est_numerote %}is-sans-numero{% endif %}">
+                                    {% if bordereau.est_numerote %}{{ bordereau.numero }}{% else %}Sans numéro{% endif %}
+                                </a>
+                                {% if bordereau.fichier %}
+                                    <span class="bordereau-piece-jointe" title="Bordereau joint : {{ bordereau.nom_fichier }}">
+                                        {% include "includes/action_icon.html" with icon="download" %}
+                                        <span class="visually-hidden">Bordereau joint</span>
+                                    </span>
+                                {% endif %}
+                                <small class="bordereau-reception">Reçu le {{ bordereau.date_reception|date:"d/m/Y" }}</small>
+                            </td>
+                            <td data-label="Engagement">
+                                {% if bordereau.engagement_signe %}
+                                    <span class="bordereau-date">Signé {{ bordereau.date_engagement|date:"d/m/Y" }}</span>
+                                {% else %}
+                                    <span class="text-muted">En attente</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Liquidation">
+                                {% if bordereau.liquidation_signee %}
+                                    <span class="bordereau-date">Signée {{ bordereau.date_liquidation|date:"d/m/Y" }}</span>
+                                {% elif bordereau.engagement_signe %}
+                                    <span class="text-muted">En attente</span>
+                                {% else %}
+                                    <span class="text-muted" aria-label="Sans objet">-</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Mandat déduit">
+                                {% if bordereau.mandat_deduit %}
+                                    <span class="bordereau-mandat is-deduit" title="La liquidation signée vaut validation du Contrôleur financier.">Oui</span>
+                                {% else %}
+                                    <span class="bordereau-mandat">Non</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="État"><span class="{{ bordereau.etat_badge_class }}">{{ bordereau.etat_label }}</span></td>
+                            <td data-label="Action" class="text-end table-actions">
+                                <div class="action-icon-bar justify-content-end">
+                                    <a
+                                        href="{% url 'bordereaux:detail' bordereau.pk %}"
+                                        class="action-icon-button action-icon-button-neutral"
+                                        aria-label="Ouvrir le bordereau {{ bordereau.libelle }}"
+                                        title="Ouvrir la fiche"
+                                    >
+                                        {% include "includes/action_icon.html" with icon="view" %}
+                                    </a>
+                                    {% if can_manage %}
+                                        <a
+                                            href="{% url 'bordereaux:edit' bordereau.pk %}"
+                                            class="action-icon-button action-icon-button-primary"
+                                            aria-label="Modifier le bordereau {{ bordereau.libelle }}"
+                                            title="Modifier la fiche"
+                                        >
+                                            {% include "includes/action_icon.html" with icon="edit" %}
+                                        </a>
+                                    {% endif %}
+                                    {% if can_delete %}
+                                        <form
+                                            method="post"
+                                            action="{% url 'bordereaux:delete' bordereau.pk %}"
+                                            class="action-icon-form"
+                                            data-confirm-form="Supprimer le bordereau {{ bordereau.libelle }} et son historique de signatures ? Cette action est définitive."
+                                            data-confirm-title="Supprimer le bordereau"
+                                            data-confirm-accept="Supprimer"
+                                            data-confirm-tone="danger"
+                                        >
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button
+                                                type="submit"
+                                                class="action-icon-button action-icon-button-danger"
+                                                aria-label="Supprimer le bordereau {{ bordereau.libelle }}"
+                                                title="Supprimer"
+                                            >
+                                                {% include "includes/action_icon.html" with icon="delete" %}
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6">
+                                <div class="bordereau-empty">
+                                    <strong>Boîte vide</strong>
+                                    <span>
+                                        {% if recherche or etat_filtre %}
+                                            Aucun bordereau de cette boîte ne correspond à ces critères.
+                                        {% else %}
+                                            Aucun bordereau n'a encore été enregistré pour
+                                            {{ organisme.libelle_court }} au {{ trimestre_label }} {{ annee }}.
+                                        {% endif %}
+                                    </span>
+                                    {% if can_manage and not recherche and not etat_filtre %}
+                                        <a
+                                            href="{% url 'bordereaux:create' %}?organisme={{ organisme.pk }}&annee={{ annee }}&trimestre={{ trimestre }}&next={{ request.get_full_path|urlencode }}"
+                                            class="btn btn-primary btn-sm"
+                                        >Ajouter un bordereau</a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% include "includes/pagination.html" %}
+    </div>
+{% endblock %}

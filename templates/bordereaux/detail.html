@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% load bordereaux_extras %}
+
+{% block title %}{{ bordereau.libelle }} | Intranet DGES{% endblock %}
+{% block page_title %}
+    {% if bordereau.est_numerote %}Bordereau {{ bordereau.numero }}{% else %}Bordereau sans numéro{% endif %}
+{% endblock %}
+
+{% block content %}
+    <div class="panel-card bordereau-head mb-4">
+        <nav class="bordereau-breadcrumb" aria-label="Fil d'ariane">
+            <a href="{% url 'bordereaux:tableau_annee' bordereau.annee %}">Suivi {{ bordereau.annee }}</a>
+            <span aria-hidden="true">/</span>
+            <a href="{% url 'bordereaux:boite' bordereau.annee bordereau.trimestre bordereau.organisme.pk %}">
+                {{ bordereau.organisme.libelle_court }} — {{ bordereau.get_trimestre_display }}
+            </a>
+            <span aria-hidden="true">/</span>
+            <span>{{ bordereau.libelle }}</span>
+        </nav>
+
+        <div class="bordereau-head-top">
+            <div>
+                <span class="bordereau-kicker">{{ bordereau.periode_label }} · {{ bordereau.periode_detail }}</span>
+                <h3 class="bordereau-title">{{ bordereau.organisme.libelle_complet }}</h3>
+                <p class="bordereau-meta mb-0">
+                    Reçu le {{ bordereau.date_reception|date:"d/m/Y" }}
+                    {% if bordereau.cree_par %}
+                        · enregistré par {{ bordereau.cree_par.get_full_name|default:bordereau.cree_par.username }}
+                    {% endif %}
+                    {% if bordereau.delai_traitement is not None %}
+                        · circuit bouclé en {{ bordereau.delai_traitement }} jour{{ bordereau.delai_traitement|pluriel }}
+                    {% endif %}
+                </p>
+                {% if not bordereau.est_numerote %}
+                    <p class="bordereau-sans-numero mb-0">
+                        Numéro non attribué.
+                        {% if can_manage %}
+                            Renseignez-le depuis « Modifier la fiche » dès qu'il est connu.
+                        {% endif %}
+                    </p>
+                {% endif %}
+            </div>
+            <div class="bordereau-head-actions">
+                <span class="{{ bordereau.etat_badge_class }} bordereau-etat-large">{{ bordereau.etat_label }}</span>
+                <div class="d-flex flex-wrap gap-2">
+                    <a
+                        href="{% url 'bordereaux:boite' bordereau.annee bordereau.trimestre bordereau.organisme.pk %}"
+                        class="btn btn-outline-secondary btn-sm"
+                    >Retour à la boîte</a>
+                    {% if can_manage %}
+                        <a href="{% url 'bordereaux:edit' bordereau.pk %}" class="btn btn-outline-primary btn-sm">Modifier la fiche</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <ol class="bordereau-stepper" aria-label="Étapes du circuit de signature">
+            {% for etape in etapes %}
+                <li class="bordereau-step {% if etape.fait %}is-done{% endif %}">
+                    <span class="bordereau-step-dot" aria-hidden="true">{% if etape.fait %}&check;{% else %}{{ forloop.counter }}{% endif %}</span>
+                    <div class="bordereau-step-body">
+                        <strong class="bordereau-step-title">{{ etape.titre }}</strong>
+                        <span class="bordereau-step-desc">{{ etape.description }}</span>
+                        <span class="bordereau-step-state">
+                            {% if etape.date %}
+                                Signé le {{ etape.date|date:"d/m/Y" }}
+                            {% else %}
+                                {{ etape.mention }}
+                            {% endif %}
+                        </span>
+                    </div>
+                </li>
+            {% endfor %}
+        </ol>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-8">
+            {% if can_manage and not bordereau.est_termine %}
+                <div class="panel-card mb-4">
+                    <div class="panel-header">
+                        <h4>Enregistrer une signature</h4>
+                    </div>
+                    {% if not bordereau.engagement_signe %}
+                        <p class="text-muted">
+                            L'engagement est la signature initiale : elle fait entrer le bordereau dans le circuit.
+                        </p>
+                        {% include "bordereaux/_signature_form.html" with etape="engagement" libelle="Signer l'engagement" confirmation="Enregistrer la signature de l'engagement de ce bordereau ?" %}
+                    {% else %}
+                        <p class="text-muted">
+                            Engagement signé le {{ bordereau.date_engagement|date:"d/m/Y" }}.
+                            La signature de la liquidation clôt le circuit et vaut validation du mandat
+                            par le Contrôleur financier : aucune saisie séparée n'est attendue pour le mandat.
+                        </p>
+                        {% include "bordereaux/_signature_form.html" with etape="liquidation" libelle="Signer la liquidation" confirmation="Enregistrer la signature de la liquidation ? Le dossier passera à l'état Terminé et le mandat sera considéré comme validé." %}
+                    {% endif %}
+                </div>
+            {% elif bordereau.est_termine %}
+                <div class="panel-card mb-4 bordereau-closed-note">
+                    <div class="panel-header">
+                        <h4>Circuit clos</h4>
+                    </div>
+                    <p class="mb-0">
+                        La liquidation a été signée le {{ bordereau.date_liquidation|date:"d/m/Y" }}.
+                        Le mandat est considéré comme validé par le Contrôleur financier, par déduction.
+                        {% if can_manage %}
+                            Une erreur de saisie se corrige depuis
+                            <a href="{% url 'bordereaux:edit' bordereau.pk %}">la fiche du bordereau</a>.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+
+            {% comment %}
+                L'aperçu est ouvert d'emblée, et non derrière un bouton : on
+                relève les dates de signature en regardant la pièce, et la
+                rouvrir à chaque bordereau contrôlé n'aurait pas de sens.
+            {% endcomment %}
+            <div class="panel-card mb-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 page-section-header">
+                    <div>
+                        <h4 class="h6 mb-1">Le bordereau</h4>
+                        <p class="text-muted mb-0 small">
+                            {% if bordereau.fichier %}
+                                Pièce de référence : c'est elle qu'on rouvre si une date est contestée.
+                            {% else %}
+                                Aucune pièce n'est encore jointe à ce bordereau.
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% if bordereau.fichier %}
+                        <div class="d-flex flex-wrap gap-2">
+                            {% if bordereau.fichier_est_pdf %}
+                                <a href="{% url 'bordereaux:fichier' bordereau.pk %}?consulter=1"
+                                   class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">Ouvrir dans un onglet</a>
+                            {% endif %}
+                            <a href="{% url 'bordereaux:fichier' bordereau.pk %}"
+                               class="btn btn-outline-secondary btn-sm">Télécharger</a>
+                        </div>
+                    {% elif can_manage %}
+                        <a href="{% url 'bordereaux:edit' bordereau.pk %}" class="btn btn-primary btn-sm">Charger le bordereau</a>
+                    {% endif %}
+                </div>
+
+                {% if bordereau.fichier %}
+                    {% if bordereau.fichier_est_pdf %}
+                        {% comment %}
+                            Aperçu intégré : object-src est interdit par la politique
+                            de sécurité, seul un cadre de même origine passe.
+                        {% endcomment %}
+                        <iframe
+                            src="{% url 'bordereaux:fichier' bordereau.pk %}?consulter=1"
+                            class="bordereau-apercu"
+                            title="Bordereau {{ bordereau.libelle }}"
+                            loading="lazy"
+                        ></iframe>
+                    {% else %}
+                        <div class="bordereau-piece-note">
+                            <strong>{{ bordereau.nom_fichier }}</strong>
+                            <span>
+                                Ce document ne s'affiche pas dans le navigateur.
+                                Téléchargez-le pour le consulter.
+                            </span>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="bordereau-empty">
+                        <strong>Bordereau non joint</strong>
+                        <span>
+                            Déposez le bordereau scanné ou photographié depuis « Modifier la
+                            fiche ». Il restera consultable ici pendant tout le circuit.
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h4>Informations du bordereau</h4>
+                </div>
+                <dl class="bordereau-facts">
+                    <div>
+                        <dt>N° de bordereau</dt>
+                        <dd>
+                            {% if bordereau.est_numerote %}
+                                {{ bordereau.numero }}
+                            {% else %}
+                                <span class="text-muted">Non attribué</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Organisme</dt>
+                        <dd>{{ bordereau.organisme.libelle_complet }}</dd>
+                    </div>
+                    <div>
+                        <dt>Période</dt>
+                        <dd>{{ bordereau.periode_label }} — {{ bordereau.periode_detail }}</dd>
+                    </div>
+                    <div>
+                        <dt>Date de réception</dt>
+                        <dd>{{ bordereau.date_reception|date:"d/m/Y" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Signature de l'engagement</dt>
+                        <dd>
+                            {% if bordereau.engagement_signe %}
+                                {{ bordereau.date_engagement|date:"d/m/Y" }}
+                            {% else %}
+                                <span class="text-muted">En attente</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Mandat</dt>
+                        <dd>
+                            <span class="bordereau-mandat {% if bordereau.mandat_deduit %}is-deduit{% endif %}">
+                                {{ bordereau.mandat_label }}
+                            </span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Signature de la liquidation</dt>
+                        <dd>
+                            {% if bordereau.liquidation_signee %}
+                                {{ bordereau.date_liquidation|date:"d/m/Y" }}
+                            {% else %}
+                                <span class="text-muted">En attente</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>État</dt>
+                        <dd><span class="{{ bordereau.etat_badge_class }}">{{ bordereau.etat_label }}</span></dd>
+                    </div>
+                    <div class="bordereau-facts-wide">
+                        <dt>Observation</dt>
+                        <dd>{{ bordereau.observation|linebreaksbr|default:"—" }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h4>Traçabilité</h4>
+                </div>
+                <ol class="bordereau-timeline">
+                    {% for item in historiques %}
+                        <li class="bordereau-timeline-item">
+                            <span class="bordereau-timeline-dot" aria-hidden="true"></span>
+                            <div>
+                                <strong>{{ item.action }}</strong>
+                                <span class="bordereau-timeline-meta">
+                                    {% if item.utilisateur %}{{ item.utilisateur.get_full_name|default:item.utilisateur.username }} · {% endif %}
+                                    {{ item.date|date:"d/m/Y H:i" }}
+                                </span>
+                                {% if item.commentaire %}
+                                    <p class="bordereau-timeline-comment mb-0">{{ item.commentaire }}</p>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% empty %}
+                        <li class="text-muted">Aucun mouvement enregistré.</li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+    </div>
+{% endblock %}

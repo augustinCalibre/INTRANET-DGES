@@ -176,6 +176,19 @@ body {
     padding: 0.4rem 0.5rem;
     border: 1px solid #000000;
     vertical-align: top;
+    /* Les noms de service depassent souvent la largeur d'une colonne : ils
+       se coupent plutot que de deborder sur la colonne voisine. */
+    overflow-wrap: break-word;
+    word-break: break-word;
+    /* Une colonne coupee en deux par un saut de page devient illisible. */
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+/* Case de complement, quand la derniere rangee n'est pas pleine : elle tient
+   la largeur sans dessiner un cadre vide au milieu du formulaire. */
+.fiche-grille td.fiche-case-vide {
+    border-color: transparent;
 }
 
 .fiche-colonne-titre {
@@ -187,12 +200,25 @@ body {
     text-transform: uppercase;
 }
 
+.fiche-case-sans-agent {
+    font-style: italic;
+}
+
 .fiche-case {
     display: flex;
-    align-items: center;
+    /* Un nom de service tient rarement sur une ligne dans une colonne de
+       formulaire : le rond se cale sur la premiere ligne du libelle plutot
+       que de flotter au milieu du bloc. */
+    align-items: flex-start;
     gap: 0.4rem;
     padding: 0.12rem 0;
     font-size: 10pt;
+}
+
+/* Sans cette regle, le libelle refuse de se couper : un enfant de conteneur
+   flex ne descend pas sous la largeur de son contenu de lui-meme. */
+.fiche-case > span:last-child {
+    min-width: 0;
 }
 
 /* Case à cocher dessinée : un rond vide à remplir au stylo, ou entièrement
@@ -204,6 +230,8 @@ body {
     flex: 0 0 12px;
     width: 12px;
     height: 12px;
+    /* Cale le rond sur la hauteur de la premiere ligne du libelle. */
+    margin-top: 0.12rem;
     border: 1px solid #000000;
     border-radius: 50%;
     position: relative;

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% load bordereaux_extras %}
+
+{% block title %}Suivi des bordereaux {{ annee }} | Intranet DGES{% endblock %}
+{% block page_title %}Suivi des bordereaux{% endblock %}
+
+{% block content %}
+    <div class="panel-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">Bordereaux présentés au circuit de signature</h3>
+                <p class="text-muted mb-0">
+                    Engagement, mandat, liquidation : l'avancement de chaque dossier, organisme par
+                    organisme et trimestre par trimestre. Aucun montant n'est conservé.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 page-actions">
+                <a href="{% url 'bordereaux:organisme_list' %}" class="btn btn-outline-secondary">Organismes</a>
+                <a href="{% url 'bordereaux:export_annee' annee %}" class="btn btn-outline-primary">Exporter {{ annee }}</a>
+                {% if can_manage %}
+                    <a href="{% url 'bordereaux:create' %}?annee={{ annee }}" class="btn btn-primary">Enregistrer un bordereau</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="bordereau-year-bar">
+            <span class="bordereau-year-label">Année</span>
+            <div class="bordereau-year-tabs" role="list">
+                {% for item in annees %}
+                    <a
+                        href="{% url 'bordereaux:tableau_annee' item %}"
+                        class="bordereau-year-tab {% if item == annee %}is-active{% endif %}"
+                        role="listitem"
+                        {% if item == annee %}aria-current="page"{% endif %}
+                    >{{ item }}</a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bordereau-summary" role="list">
+            <div class="bordereau-summary-item" role="listitem">
+                <span class="bordereau-summary-label">Bordereaux suivis</span>
+                <strong class="bordereau-summary-value">{{ resume.total }}</strong>
+                <span class="bordereau-summary-hint">sur l'année {{ annee }}</span>
+            </div>
+            <div class="bordereau-summary-item is-termine" role="listitem">
+                <span class="bordereau-summary-label">Terminés</span>
+                <strong class="bordereau-summary-value">{{ resume.termines }}</strong>
+                <span class="bordereau-summary-hint">liquidation signée</span>
+            </div>
+            <div class="bordereau-summary-item is-encours" role="listitem">
+                <span class="bordereau-summary-label">En cours</span>
+                <strong class="bordereau-summary-value">{{ resume.en_cours }}</strong>
+                <span class="bordereau-summary-hint">engagement signé</span>
+            </div>
+            <div class="bordereau-summary-item is-attente" role="listitem">
+                <span class="bordereau-summary-label">En attente</span>
+                <strong class="bordereau-summary-value">{{ resume.attente }}</strong>
+                <span class="bordereau-summary-hint">engagement non signé</span>
+            </div>
+        </div>
+
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <label class="form-label" for="organismeSearch">Rechercher un organisme</label>
+                <input
+                    type="text"
+                    id="organismeSearch"
+                    class="form-control"
+                    name="q"
+                    value="{{ recherche }}"
+                    placeholder="Nom ou sigle, par exemple UFHB"
+                >
+            </div>
+            <div class="col-lg-3 d-grid align-self-end">
+                <button type="submit" class="btn btn-outline-primary">Filtrer</button>
+            </div>
+            {% if recherche %}
+                <div class="col-lg-3 d-grid align-self-end">
+                    <a href="{% url 'bordereaux:tableau_annee' annee %}" class="btn btn-outline-secondary">Afficher tout</a>
+                </div>
+            {% endif %}
+        </form>
+
+        <div class="bordereau-legend" aria-hidden="true">
+            {% for periode in periodes %}
+                <span class="bordereau-legend-item"><strong>{{ periode.label }}</strong> {{ periode.periode }}</span>
+            {% endfor %}
+        </div>
+
+        {% for ligne in lignes %}
+            <section class="bordereau-organisme">
+                <header class="bordereau-organisme-head">
+                    <div>
+                        <h4 class="bordereau-organisme-name">{{ ligne.organisme.libelle_court }}</h4>
+                        {% if ligne.organisme.sigle and ligne.organisme.sigle != ligne.organisme.nom %}
+                            <p class="bordereau-organisme-full">{{ ligne.organisme.nom }}</p>
+                        {% endif %}
+                    </div>
+                    <span class="bordereau-organisme-total">
+                        {{ ligne.total }} bordereau{{ ligne.total|pluriel:"x" }} en {{ annee }}
+                    </span>
+                </header>
+
+                <div class="bordereau-boxes">
+                    {% for boite in ligne.boites %}
+                        <a
+                            class="bordereau-box {% if not boite.total %}is-empty{% endif %}"
+                            href="{% url 'bordereaux:boite' annee boite.trimestre ligne.organisme.pk %}"
+                            aria-label="{{ ligne.organisme.libelle_court }} {{ boite.label }} {{ annee }} : {{ boite.total }} bordereau{{ boite.total|pluriel:"x" }}, dont {{ boite.termines }} terminé{{ boite.termines|pluriel }}, {{ boite.en_cours }} en cours et {{ boite.attente }} en attente d'engagement"
+                        >
+                            <span class="bordereau-box-head">
+                                <span class="bordereau-box-trimestre">{{ boite.label }}</span>
+                                <span class="bordereau-box-total">{{ boite.total }}</span>
+                            </span>
+                            {% if boite.total %}
+                                <span class="bordereau-box-gauge" role="presentation">
+                                    {% widthratio boite.termines boite.total 100 as part_termine %}
+                                    {% widthratio boite.en_cours boite.total 100 as part_encours %}
+                                    <span class="bordereau-gauge-segment is-termine" style="width: {{ part_termine }}%"></span>
+                                    <span class="bordereau-gauge-segment is-encours" style="width: {{ part_encours }}%"></span>
+                                </span>
+                                <span class="bordereau-box-counts">
+                                    <span class="bordereau-count is-termine">{{ boite.termines }} terminé{{ boite.termines|pluriel }}</span>
+                                    <span class="bordereau-count is-encours">{{ boite.en_cours }} en cours</span>
+                                    <span class="bordereau-count is-attente">{{ boite.attente }} en attente</span>
+                                </span>
+                            {% else %}
+                                <span class="bordereau-box-empty">Aucun bordereau</span>
+                            {% endif %}
+                        </a>
+                    {% endfor %}
+                </div>
+            </section>
+        {% empty %}
+            <div class="bordereau-empty">
+                <strong>Aucun organisme à suivre</strong>
+                <span>
+                    {% if recherche %}
+                        Aucun organisme ne correspond à « {{ recherche }} ».
+                    {% else %}
+                        Déclarez d'abord les organismes dont vous suivez les bordereaux ;
+                        les boîtes trimestrielles apparaîtront ensuite pour chacun d'eux.
+                    {% endif %}
+                </span>
+                {% if can_manage and not recherche %}
+                    <a href="{% url 'bordereaux:organisme_create' %}" class="btn btn-primary btn-sm">Ajouter un organisme</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        {% include "includes/pagination.html" %}
+    </div>
+{% endblock %}

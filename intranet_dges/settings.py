@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "documents",
     "meetings",
     "diplomas",
+    "bordereaux",
     "courriers",
     "exploitation",
     "messagerie",

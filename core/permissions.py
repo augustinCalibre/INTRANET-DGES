@@ -19,9 +19,11 @@ from accounts.constants import (
     ROLE_DIRECTEUR_GENERAL,
     ROLE_SECRETARIAT,
     ROLE_SECRETARIAT_ADJOINT,
+    ROLES_ACCES_BORDEREAUX,
     ROLES_ACCES_COURRIERS,
     ROLES_ACCES_DIPLOMES,
     ROLES_AFFECTATION_LIBRE,
+    ROLES_BORDEREAUX,
     ROLES_CLASSEMENT,
     ROLES_CONSULTATION_COMPTES,
     ROLES_COURRIER,
@@ -205,6 +207,20 @@ def can_access_diplomas(user):
     transmettre, le DG pour signer, sans toucher au contenu des lots.
     """
     return _in(user, ROLES_ACCES_DIPLOMES)
+
+
+def can_manage_bordereaux(user):
+    """Enregistrer un bordereau et saisir ses dates de signature."""
+    return _in(user, ROLES_BORDEREAUX)
+
+
+def can_access_bordereaux(user):
+    """Consulter le suivi trimestriel des bordereaux.
+
+    Plus large que `can_manage_bordereaux` : le Directeur General lit le
+    tableau pour savoir ou en sont les dossiers, sans saisir les signatures.
+    """
+    return _in(user, ROLES_ACCES_BORDEREAUX)
 
 
 def can_manage_all_meetings(user):

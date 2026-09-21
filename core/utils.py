@@ -1,4 +1,7 @@
+import csv
+
 from django.core.paginator import Paginator
+from django.http import HttpResponse
 from django.shortcuts import resolve_url
 from django.utils.http import url_has_allowed_host_and_scheme
 
@@ -29,6 +32,22 @@ def querystring_without(request, *keys):
         params.pop(key, None)
     encoded = params.urlencode()
     return f"{encoded}&" if encoded else ""
+
+
+def csv_response(filename, header, rows):
+    """Export CSV ouvrable directement dans Excel.
+
+    Deux details y pourvoient : le point-virgule, separateur attendu par les
+    versions francaises d'Excel, et la marque d'ordre des octets, sans
+    laquelle les accents s'affichent de travers a l'ouverture.
+    """
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response.write("﻿")
+    writer = csv.writer(response, delimiter=";")
+    writer.writerow(header)
+    writer.writerows(rows)
+    return response
 
 
 def safe_next_url(request, candidate_url, fallback):

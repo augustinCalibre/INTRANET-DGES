@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titre }} | Intranet DGES{% endblock %}
+{% block page_title %}{{ titre }}{% endblock %}
+
+{% block content %}
+    <div class="panel-card form-card">
+        <div class="panel-header">
+            <h4>{% if is_creation %}Nouveau bordereau{% else %}Fiche du bordereau{% endif %}</h4>
+        </div>
+        <p class="text-muted">
+            {% if is_creation %}
+                Le bordereau se range dans la boîte trimestrielle de l'organisme. Le numéro et les
+                dates de signature peuvent rester vides : ils se renseignent au fil du circuit,
+                depuis la fiche.
+            {% else %}
+                La saisie d'une date de liquidation clôt le circuit et vaut validation du mandat par le
+                Contrôleur financier. Vider une date revient sur l'état précédent du dossier.
+            {% endif %}
+        </p>
+
+        {% comment %}
+            enctype est indispensable : sans lui le navigateur n'envoie pas le
+            bordereau joint, et l'enregistrement reussit sans lui.
+        {% endcomment %}
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="row g-3">
+                {% for field in form %}
+                    <div class="{% if field.name == 'observation' or field.name == 'fichier' %}col-12{% else %}col-md-6{% endif %}">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.name == "fichier" and bordereau.fichier %}
+                            <div class="form-text">
+                                Pièce actuelle : <strong>{{ bordereau.nom_fichier }}</strong>.
+                                Déposer un nouveau fichier la remplacera.
+                            </div>
+                        {% endif %}
+                        {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4 form-actions">
+                <a
+                    href="{% if bordereau %}{% url 'bordereaux:detail' bordereau.pk %}{% else %}{{ retour }}{% endif %}"
+                    class="btn btn-outline-secondary"
+                >{% if bordereau %}Retour à la fiche{% else %}Annuler{% endif %}</a>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if is_creation %}
+                        <button type="submit" name="save_and_add" value="1" class="btn btn-outline-primary">
+                            Enregistrer et en ajouter un autre
+                        </button>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary">
+                        {% if is_creation %}Enregistrer le bordereau{% else %}Enregistrer les modifications{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+{% endblock %}

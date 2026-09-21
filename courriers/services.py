@@ -73,6 +73,32 @@ def build_imputation_grid():
     return grille
 
 
+# Nombre de services par rangee sur la fiche imprimee. Trois tiennent dans
+# la largeur utile d'une A4 portrait en laissant a chaque colonne de quoi
+# afficher un nom de service entier.
+SERVICES_PAR_RANGEE = 3
+
+
+def decouper_en_rangees(colonnes, par_rangee=SERVICES_PAR_RANGEE):
+    """Repartit les colonnes d'imputation sur plusieurs rangees.
+
+    Toutes les colonnes sur une seule ligne obligeaient le tableau a diviser
+    la largeur de la page par le nombre de services : passe quatre ou cinq,
+    les noms se chevauchaient. La derniere rangee est completee de cases
+    vides pour que le tableau garde des colonnes d'egale largeur.
+    """
+    colonnes = list(colonnes)
+    if not colonnes:
+        return []
+
+    rangees = []
+    for debut in range(0, len(colonnes), par_rangee):
+        rangee = colonnes[debut : debut + par_rangee]
+        rangee += [None] * (par_rangee - len(rangee))
+        rangees.append(rangee)
+    return rangees
+
+
 def get_imputation_recipients(courrier):
     """Agents vises par les imputations : nommement, ou via leur service."""
     service_ids = list(courrier.services_imputes.values_list("id", flat=True))

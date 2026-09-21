@@ -1016,3 +1016,40 @@ html[data-theme="dark"] .btn-outline-primary:focus-visible {
         font-size: 1.8rem;
     }
 }
+
+/* ------------------ Portée d'un document
+
+   Un document s'adresse à un service, à des agents nommés, ou à toute la
+   direction. La liste affiche ces destinations sous forme de pastilles :
+   une énumération séparée par des virgules se lisait mal dès qu'un document
+   visait un service et trois agents. */
+
+.document-portee {
+    display: inline-block;
+    margin: 0.1rem 0.2rem 0.1rem 0;
+    padding: 0.15rem 0.55rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    background: var(--surface-soft, #f4f7fa);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.document-portee.is-tous {
+    border-color: transparent;
+    background: rgba(27, 95, 142, 0.16);
+    color: #10456b;
+}
+
+html[data-theme="dark"] .document-portee.is-tous {
+    background: rgba(122, 184, 244, 0.18);
+    color: #b7d9fb;
+}
+
+.document-portee-tous {
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md, 13px);
+    background: var(--surface-soft, #f4f7fa);
+}

@@ -194,6 +194,8 @@ Capacités et rôles qui les détiennent :
 | **Signer, valider, retourner** | **DG, Administrateur** |
 | Gérer les lots et les diplômes | Agent d'étude, Administrateur |
 | Consulter le registre des diplômes | Agent d'étude, Secrétariat, DG, Administrateur |
+| Tenir le suivi des bordereaux | Secrétariat, Secrétariat adjoint, Administrateur |
+| Consulter le suivi des bordereaux | Secrétariat, Secrétariat adjoint, DG, Administrateur |
 | Tenir le planning de la direction | Secrétariat, Secrétariat adjoint, Administrateur |
 | Créer les comptes, distribuer les accès | Administrateur |
 | Consulter l'annuaire des comptes | Administrateur, DG |
@@ -276,8 +278,28 @@ La durée est saisie en minutes ; c'est elle qui permet de calculer les chevauch
 - ajout de document ;
 - upload de fichier ;
 - classement par type ;
-- service concerné ;
 - archivage.
+
+**Destinataires.** Un document s'adresse à un service, à des agents nommément, ou à toute la
+direction — et ces destinations se cumulent : un document peut partir à un service et à deux
+agents d'un autre. Un agent voit un document par quatre chemins : il en est l'auteur, il
+appartient au service visé, il figure parmi les destinataires, ou le document est diffusé à
+tous. Cocher **Tous les agents de la DGES** absorbe les autres destinations, qui sont alors
+effacées : les conserver laisserait croire, sur la fiche, à une diffusion restreinte.
+
+Un document sans aucune destination reste visible de son seul auteur ; la liste l'affiche
+« Non diffusé » plutôt que de laisser la colonne vide.
+
+**Notification.** Chaque destinataire est averti du dépôt : un compteur apparaît sur
+l'entrée **Documents** du menu, et la notification mène directement au téléchargement — la
+liste n'ayant pas de fiche par pièce, renvoyer l'agent chercher un titre dans un tableau ne
+lui indiquerait rien. Ouvrir la liste des documents vaut prise de connaissance et éteint le
+compteur.
+
+Seuls les destinataires **qui s'ajoutent** sont notifiés lors d'une modification : corriger
+le titre d'un document ne renvoie pas d'alerte à ceux qui l'avaient déjà reçue. L'auteur ne
+s'avertit jamais lui-même. Le message de confirmation indique combien d'agents ont été
+prévenus, ou signale que le document n'a aucun destinataire.
 
 ### Courriers
 
@@ -382,7 +404,12 @@ arrivée (numéro et date), provenance, objet.
 - **la grille est construite à partir des services actifs et de leurs agents** : une
   colonne par service, avec « Tout le service » puis chaque agent. Créer un compte ou un
   service suffit à le faire apparaître ; désactiver un service le retire. Aucune liste à
-  maintenir en parallèle.
+  maintenir en parallèle ;
+- **la grille s'écoule sur plusieurs rangées de trois colonnes**, à l'écran comme à
+  l'impression. Aligner tous les services sur une seule ligne divisait la largeur de la
+  page par leur nombre : au-delà de quatre ou cinq, les noms se chevauchaient. Les noms
+  trop longs se coupent désormais au lieu de déborder sur la colonne voisine, et une
+  colonne n'est jamais scindée par un saut de page.
 
 Les 12 instructions de l'imprimé sont amorcées à l'installation et modifiables depuis
 l'administration.
@@ -474,6 +501,86 @@ majuscules et variantes courantes sont reconnus.
 
 Les lignes en doublon, sans nom ou sans numéro sont signalées dans l'aperçu et exclues de
 l'import ; les autres lignes restent importables.
+
+### Suivi des bordereaux
+
+Module `bordereaux`, menu **Bordereaux**. Il suit, pour chaque organisme et chaque
+trimestre, les bordereaux présentés au circuit de signature et leur avancement. Il ne
+conserve **aucun montant financier** : des numéros de bordereaux, des dates et un état.
+
+Le suivi s'organise en **Année → Organisme → Trimestre → Boîte de bordereaux**. Un
+organisme peut avoir plusieurs bordereaux dans un même trimestre ; la boîte T1, T2, T3 ou
+T4 les regroupe avec leur état individuel. Le tableau annuel affiche pour chaque organisme
+ses quatre boîtes, chacune donnant la répartition « terminés / en cours / en attente » ;
+un clic ouvre la boîte et liste les numéros.
+
+Le circuit compte trois étapes, dont deux seulement se saisissent :
+
+| Étape | Saisie | Rôle |
+|---|---|---|
+| **Engagement** | date de signature | signature initiale, le bordereau entre dans le circuit |
+| **Mandat** | aucune | validation par le Contrôleur financier |
+| **Liquidation** | date de signature | dernière signature suivie, elle clôt le circuit |
+
+**Règle métier essentielle** : lorsqu'une liquidation est signée, le mandat est considéré
+comme **validé par déduction** — le Contrôleur financier n'a pas pu laisser passer une
+liquidation sans l'avoir visée. Aucune saisie séparée du mandat n'est demandée pour
+clôturer le dossier.
+
+L'état n'est pas un champ stocké : il se déduit des dates déjà saisies, et les comptages
+du tableau traduisent la même règle en SQL (`bordereaux/selectors.py`). Un dossier dont la
+liquidation est signée est **Terminé**, un dossier engagé mais non liquidé est **En
+cours**, le reste est **Engagement en attente**. Rien ne peut donc se désynchroniser entre
+l'état affiché et les dates.
+
+**Le numéro n'est pas obligatoire.** Un bordereau arrive parfois avant d'être numéroté : il
+s'enregistre quand même, et se désigne alors par sa date de réception (« Sans numéro · reçu
+le 17/02/2026 »). Ces dossiers sont regroupés en fin de boîte plutôt que dispersés au
+milieu d'une suite de numéros, et leur fiche rappelle que le numéro reste à renseigner. Le
+contrôle de doublon ne s'applique qu'aux bordereaux numérotés — plusieurs dossiers peuvent
+attendre leur numéro sans s'exclure les uns les autres.
+
+**Le bordereau lui-même peut être chargé** : PDF, Word, ou la photographie de la pièce
+papier, jusqu'à 10 Mo. Un PDF s'affiche directement dans la fiche, à côté des dates à
+relever ; les autres formats se téléchargent. La pièce ne sort jamais en direct du dossier
+des médias — elle passe par une vue qui vérifie d'abord les droits sur le bordereau, et
+sert le fichier en interdisant au navigateur de deviner son type.
+
+Autres contrôles à la saisie : aucune date ne peut être postérieure au jour même,
+l'engagement ne précède pas la réception et la liquidation ne précède pas l'engagement. Une
+liquidation sans engagement est refusée : c'est l'engagement qui fait entrer le dossier
+dans le circuit.
+
+#### Les organismes suivis
+
+Le référentiel est installé par la migration `bordereaux/0003_organismes_dges.py`, et non
+saisi à la main : il doit exister à l'identique sur chaque déploiement, sans qu'on ait à le
+ressaisir après une restauration ou sur une nouvelle installation. L'opération est
+idempotente — un organisme déjà présent est reconnu à son nom et n'est pas dupliqué.
+
+| | |
+|---|---|
+| **Universités et établissements** | UFHB, UNA, ENS, UVCI, USP, UBK, INP-HB, UAO, UPGC, UJLoG, UMAN, UIGB, GPE |
+| **Programme** | PDU |
+| **Directions et organismes rattachés** | DESUP, DEXCO, OIPDES |
+| **Natures de dossier** | BTS – DAF, Prise en charge |
+
+Tous ces libellés ne désignent pas des établissements : le suivi compte aussi des
+directions, un programme et des natures de dossier. C'est voulu — dans le tableau
+trimestriel, ce sont des lignes au même titre que les universités, parce que leurs
+bordereaux suivent le même circuit de signature.
+
+Le tableau et la liste déroulante affichent les sigles : ils se trient donc sur le sigle,
+et non sur le nom complet qu'ils ne montrent pas. La casse est conservée telle que saisie —
+`UJLoG` porte la sienne, et `Prise en charge` n'est pas un acronyme.
+
+Un organisme s'ajoute ou se corrige depuis **Bordereaux → Organismes**. Un organisme retiré
+du suivi disparaît du tableau sans que ses bordereaux ni leur historique soient effacés ;
+sa suppression est refusée tant que des bordereaux lui sont rattachés.
+
+Chaque signature est horodatée et attribuée dans l'historique du bordereau. L'export CSV
+d'une année, d'un trimestre ou d'une boîte reprend les mêmes colonnes que le tableau,
+toujours sans aucun montant.
 
 ## Passage futur vers PostgreSQL
 
@@ -855,6 +962,30 @@ docker compose exec web python manage.py synchroniser_messagerie --conversations
 
 La commande ne fait que ce qui manque ; deux exécutions de suite donnent le même
 résultat.
+
+### Les messages n'arrivaient pas en direct
+
+Symptôme : un agent envoie un message, le destinataire ne voit rien — puis le message
+apparaît dès qu'il recharge la page. Le message était donc bien enregistré ; c'est sa
+livraison en temps réel qui échouait.
+
+Talk récupère les nouveaux messages par de **longues requêtes d'attente** : le client
+interroge le serveur, qui garde la main jusqu'à ce qu'un message arrive, puis répond. Trois
+réglages manquaient à `docker/nginx/default.conf` pour que ce mécanisme traverse le proxy :
+
+| Réglage | Sans lui |
+|---|---|
+| `proxy_http_version 1.1` | nginx parlait en **HTTP/1.0** au conteneur : ni connexion persistante, ni réponse en morceaux |
+| `Connection $connection_upgrade` (via une `map`) | `Connection: upgrade` était posé **en dur sur toutes les requêtes**, y compris celles qui ne demandaient aucune bascule WebSocket |
+| `proxy_buffering off` | nginx retenait la réponse en tampon au lieu de la transmettre dès son arrivée |
+
+Le correctif est dans la configuration nginx, pas dans l'application. Il ne prend effet
+qu'au redémarrage du conteneur :
+
+```powershell
+docker compose exec nginx nginx -t
+docker compose restart nginx
+```
 
 ### Réglages (`.env`)
 

@@ -31,10 +31,13 @@ def application_context(request):
     can_manage_visitors = False
     can_manage_diplomas = False
     can_access_courriers = False
+    can_access_bordereaux = False
     can_view_accounts = False
     can_manage_backups = False
     lots_awaiting_signature_count = 0
     courriers_a_traiter_count = 0
+    bordereaux_en_attente_count = 0
+    nouveaux_documents_count = 0
 
     if getattr(request.user, "is_authenticated", False):
         from core.models import Notification
@@ -45,6 +48,9 @@ def application_context(request):
         from core.permissions import can_view_accounts as user_can_view_accounts
         from core.permissions import can_manage_visitors as user_can_manage_visitors
         from core.permissions import can_access_courriers as user_can_access_courriers
+        from core.permissions import can_access_bordereaux as user_can_access_bordereaux
+        from bordereaux.selectors import get_bordereaux_en_attente
+        from documents.services import get_documents_non_lus
         from courriers.selectors import (
             get_courriers_awaiting_dg,
             get_courriers_awaiting_secretariat,
@@ -63,10 +69,19 @@ def application_context(request):
         ).count()
         can_schedule_meeting = can_manage_meetings(request.user)
         can_manage_documents = user_can_manage_documents(request.user)
+        # Tout agent peut recevoir un document, y compris sans droit de depot :
+        # le compteur ne depend d'aucune capacite.
+        nouveaux_documents_count = get_documents_non_lus(request.user).count()
         can_manage_visitors = user_can_manage_visitors(request.user)
         can_manage_diplomas = user_can_manage_diplomas(request.user)
         if can_manage_diplomas:
             lots_awaiting_signature_count = get_lots_awaiting_signature(request.user).count()
+
+        can_access_bordereaux = user_can_access_bordereaux(request.user)
+        if can_access_bordereaux:
+            # Le badge compte les dossiers dont l'engagement n'est pas signe :
+            # ce sont eux qui n'ont pas encore commence leur circuit.
+            bordereaux_en_attente_count = get_bordereaux_en_attente(request.user).count()
 
         can_view_accounts = user_can_view_accounts(request.user)
         can_manage_backups = user_can_manage_backups(request.user)
@@ -98,8 +113,11 @@ def application_context(request):
         "can_manage_visitors": can_manage_visitors,
         "can_manage_diplomas": can_manage_diplomas,
         "can_access_courriers": can_access_courriers,
+        "can_access_bordereaux": can_access_bordereaux,
         "can_view_accounts": can_view_accounts,
         "can_manage_backups": can_manage_backups,
         "lots_awaiting_signature_count": lots_awaiting_signature_count,
         "courriers_a_traiter_count": courriers_a_traiter_count,
+        "bordereaux_en_attente_count": bordereaux_en_attente_count,
+        "nouveaux_documents_count": nouveaux_documents_count,
     }

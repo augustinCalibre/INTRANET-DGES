@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="{% static 'vendor/flatpickr/flatpickr.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ asset_version }}">
     <link rel="stylesheet" href="{% static 'css/diplomas.css' %}?v={{ asset_version }}">
+    <link rel="stylesheet" href="{% static 'css/bordereaux.css' %}?v={{ asset_version }}">
     <link rel="stylesheet" href="{% static 'css/dges-ui.css' %}?v={{ asset_version }}">
     <link rel="stylesheet" href="{% static 'css/dashboard-viz.css' %}?v={{ asset_version }}">
     <link rel="stylesheet" href="{% static 'css/exploitation.css' %}?v={{ asset_version }}">
@@ -66,7 +67,12 @@
                             <span class="nav-link-badge">{{ unread_meeting_notifications_count }}</span>
                         {% endif %}
                     </a>
-                    <a class="nav-link {% if request.resolver_match.namespace == 'documents' and request.GET.type != 'courrier' %}active{% endif %}" href="{% url 'documents:list' %}">Documents</a>
+                    <a class="nav-link nav-link-external {% if request.resolver_match.namespace == 'documents' and request.GET.type != 'courrier' %}active{% endif %}" href="{% url 'documents:list' %}">
+                        <span>Documents</span>
+                        {% if nouveaux_documents_count %}
+                            <span class="nav-link-badge">{{ nouveaux_documents_count }}</span>
+                        {% endif %}
+                    </a>
                     {% if can_access_courriers %}
                         <a class="nav-link nav-link-external {% if request.resolver_match.namespace == 'courriers' %}active{% endif %}" href="{% url 'courriers:list' %}">
                             <span>Courriers</span>
@@ -80,6 +86,14 @@
                             <span>Diplômes</span>
                             {% if lots_awaiting_signature_count %}
                                 <span class="nav-link-badge">{{ lots_awaiting_signature_count }}</span>
+                            {% endif %}
+                        </a>
+                    {% endif %}
+                    {% if can_access_bordereaux %}
+                        <a class="nav-link nav-link-external {% if request.resolver_match.namespace == 'bordereaux' %}active{% endif %}" href="{% url 'bordereaux:tableau' %}">
+                            <span>Bordereaux</span>
+                            {% if bordereaux_en_attente_count %}
+                                <span class="nav-link-badge">{{ bordereaux_en_attente_count }}</span>
                             {% endif %}
                         </a>
                     {% endif %}

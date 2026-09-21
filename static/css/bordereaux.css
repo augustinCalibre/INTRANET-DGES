@@ -1,0 +1,757 @@
+/* ============================================================
+   Intranet DGES — module Suivi des bordereaux
+
+   Cette feuille prolonge app.css et n'introduit aucune couleur
+   propre : tout passe par les variables de theme, afin que le
+   module suive le basculement clair / sombre comme le reste de
+   l'application. Les teintes des etats, elles, sont posees en
+   rgba pour rester lisibles sur les deux fonds, puis reprises
+   dans le bloc « Theme sombre » en fin de fichier.
+   ============================================================ */
+
+/* ------------------------------------------------ Selecteur d'annee */
+
+.bordereau-year-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.bordereau-year-label {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.bordereau-year-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.bordereau-year-tab {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    background: var(--surface-soft, #f4f7fa);
+    color: var(--text-muted);
+    font-size: 0.86rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.bordereau-year-tab:hover,
+.bordereau-year-tab:focus-visible {
+    border-color: var(--primary);
+    color: var(--text-main);
+}
+
+.bordereau-year-tab.is-active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+/* ------------------------------------------------ Resume de l'annee */
+
+.bordereau-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1.5rem;
+}
+
+.bordereau-summary-item {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--border-strong, var(--border-soft));
+    border-radius: 0.75rem;
+    background: var(--surface-soft, #f4f7fa);
+}
+
+.bordereau-summary-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.bordereau-summary-value {
+    font-size: 1.6rem;
+    line-height: 1.1;
+    color: var(--primary-deep);
+}
+
+.bordereau-summary-hint {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.bordereau-summary-item.is-termine {
+    border-left-color: var(--accent-green, #0f9d47);
+}
+
+.bordereau-summary-item.is-encours {
+    border-left-color: var(--warning, #d19a1c);
+}
+
+.bordereau-summary-item.is-attente {
+    border-left-color: var(--text-muted);
+}
+
+/* ------------------------------------------------ Legende des trimestres */
+
+.bordereau-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.bordereau-legend-item strong {
+    color: var(--text-main);
+}
+
+/* ------------------------------------------------ Ligne par organisme */
+
+.bordereau-organisme {
+    padding: 1.1rem 0 1.35rem;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.bordereau-organisme:last-of-type {
+    border-bottom: 0;
+}
+
+.bordereau-organisme-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.85rem;
+}
+
+.bordereau-organisme-name {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.bordereau-organisme-full {
+    margin: 0.1rem 0 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.bordereau-organisme-total {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* ------------------------------------------------ Boites trimestrielles */
+
+.bordereau-boxes {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.bordereau-box {
+    display: grid;
+    gap: 0.6rem;
+    align-content: start;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 0.85rem;
+    background: var(--card-bg-strong, #fff);
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bordereau-box:hover,
+.bordereau-box:focus-visible {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--panel-shadow, 0 18px 46px rgba(10, 35, 64, 0.08));
+}
+
+.bordereau-box.is-empty {
+    background: var(--surface-soft, #f4f7fa);
+    border-style: dashed;
+}
+
+.bordereau-box-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.bordereau-box-trimestre {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.bordereau-box-total {
+    font-size: 1.45rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--primary-deep);
+}
+
+.bordereau-box.is-empty .bordereau-box-total {
+    color: var(--text-muted);
+}
+
+/* La jauge empile trois parts : terminees, en cours, et le fond qui
+   represente ce qui attend son engagement. Les segments ne se
+   retrecissent pas, sinon les pourcentages ne voudraient plus rien dire. */
+.bordereau-box-gauge {
+    display: flex;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--surface-muted, #dbe8f1);
+}
+
+.bordereau-gauge-segment {
+    flex: 0 0 auto;
+    height: 100%;
+}
+
+.bordereau-gauge-segment.is-termine {
+    background: var(--accent-green, #0f9d47);
+}
+
+.bordereau-gauge-segment.is-encours {
+    background: var(--warning, #d19a1c);
+}
+
+.bordereau-box-counts {
+    display: grid;
+    gap: 0.15rem;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+}
+
+.bordereau-count {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.bordereau-count::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+}
+
+.bordereau-count.is-termine::before {
+    background: var(--accent-green, #0f9d47);
+}
+
+.bordereau-count.is-encours::before {
+    background: var(--warning, #d19a1c);
+}
+
+.bordereau-box-empty {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+@media (max-width: 991.98px) {
+    .bordereau-boxes {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 575.98px) {
+    .bordereau-boxes {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* ------------------------------------------------ Fil d'ariane */
+
+.bordereau-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 1rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.bordereau-breadcrumb a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.bordereau-breadcrumb a:hover,
+.bordereau-breadcrumb a:focus-visible {
+    text-decoration: underline;
+}
+
+/* ------------------------------------------------ Bandeau de filtres */
+
+.bordereau-status-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.bordereau-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    background: var(--surface-soft, #f4f7fa);
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.bordereau-status-chip strong {
+    color: var(--primary-deep);
+    font-size: 0.95rem;
+}
+
+.bordereau-status-chip:hover,
+.bordereau-status-chip:focus-visible {
+    border-color: var(--primary);
+    color: var(--text-main);
+    transform: translateY(-1px);
+}
+
+.bordereau-status-chip.is-active {
+    border-color: var(--primary);
+    background: var(--surface-soft-strong, #ebf2f7);
+    color: var(--text-main);
+}
+
+.bordereau-status-chip.is-termine strong {
+    color: var(--accent-green-deep, #087636);
+}
+
+.bordereau-status-chip.is-encours strong {
+    color: var(--warning, #d19a1c);
+}
+
+/* ------------------------------------------------ Etats et mandat */
+
+.bordereau-etat-attente,
+.bordereau-etat-encours,
+.bordereau-etat-termine {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.bordereau-etat-attente {
+    background: rgba(100, 116, 135, 0.16);
+    color: #4a5a6b;
+}
+
+.bordereau-etat-encours {
+    background: rgba(169, 100, 42, 0.16);
+    color: #8a5520;
+}
+
+.bordereau-etat-termine {
+    background: rgba(24, 128, 74, 0.16);
+    color: #14603a;
+}
+
+.bordereau-etat-large {
+    font-size: 0.92rem;
+    padding: 0.45rem 0.9rem;
+}
+
+.bordereau-mandat {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.bordereau-mandat.is-deduit {
+    border-color: transparent;
+    background: rgba(24, 128, 74, 0.16);
+    color: #14603a;
+}
+
+.bordereau-reference {
+    font-weight: 700;
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.bordereau-reference:hover,
+.bordereau-reference:focus-visible {
+    text-decoration: underline;
+}
+
+/* Un dossier pas encore numerote se designe par sa date : la mention tient
+   la place du numero sans se faire passer pour lui. */
+.bordereau-reference.is-sans-numero {
+    font-style: italic;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.bordereau-reception {
+    display: block;
+    font-size: 0.74rem;
+    color: var(--text-muted);
+}
+
+.bordereau-sans-numero {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+.bordereau-piece-jointe {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.35rem;
+    color: var(--text-muted);
+    vertical-align: middle;
+}
+
+.bordereau-piece-jointe .action-icon-svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ------------------------------------------------ Piece jointe */
+
+.bordereau-apercu {
+    width: 100%;
+    height: 520px;
+    border: 1px solid var(--border-soft);
+    border-radius: 0.75rem;
+    background: var(--surface-soft, #f4f7fa);
+}
+
+@media (max-width: 767.98px) {
+    .bordereau-apercu {
+        height: 340px;
+    }
+}
+
+.bordereau-piece-note {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--primary);
+    border-radius: 0.75rem;
+    background: var(--surface-soft, #f4f7fa);
+}
+
+.bordereau-piece-note strong {
+    font-size: 0.92rem;
+    color: var(--text-main);
+}
+
+.bordereau-piece-note span {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.bordereau-date {
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* ------------------------------------------------ Fiche d'un bordereau */
+
+.bordereau-head-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.bordereau-kicker {
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.bordereau-title {
+    margin: 0.2rem 0 0.35rem;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.bordereau-meta {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.bordereau-head-actions {
+    display: grid;
+    justify-items: end;
+    gap: 0.6rem;
+}
+
+/* Les trois etapes du circuit : engagement, mandat, liquidation. */
+.bordereau-stepper {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.bordereau-step {
+    display: flex;
+    gap: 0.7rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 0.85rem;
+    background: var(--surface-soft, #f4f7fa);
+}
+
+.bordereau-step.is-done {
+    border-color: var(--accent-green, #0f9d47);
+    background: var(--accent-glow, rgba(15, 157, 71, 0.16));
+}
+
+.bordereau-step-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--surface-muted, #dbe8f1);
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.bordereau-step.is-done .bordereau-step-dot {
+    background: var(--accent-green, #0f9d47);
+    color: #fff;
+}
+
+.bordereau-step-body {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.bordereau-step-title {
+    font-size: 0.92rem;
+    color: var(--text-main);
+}
+
+.bordereau-step-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.bordereau-step-state {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+@media (max-width: 767.98px) {
+    .bordereau-stepper {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .bordereau-head-actions {
+        justify-items: start;
+    }
+}
+
+.bordereau-signature-form {
+    padding: 0.95rem 1rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 0.85rem;
+    background: var(--surface-soft, #f4f7fa);
+}
+
+.bordereau-closed-note {
+    border-left: 3px solid var(--accent-green, #0f9d47);
+}
+
+/* ------------------------------------------------ Tableau d'informations */
+
+.bordereau-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 0.9rem 1.5rem;
+    margin: 0;
+}
+
+.bordereau-facts > div {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.bordereau-facts-wide {
+    grid-column: 1 / -1;
+}
+
+.bordereau-facts dt {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.bordereau-facts dd {
+    margin: 0;
+    font-size: 0.92rem;
+    color: var(--text-main);
+}
+
+/* ------------------------------------------------ Tracabilite */
+
+.bordereau-timeline {
+    display: grid;
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.bordereau-timeline-item {
+    position: relative;
+    display: flex;
+    gap: 0.7rem;
+}
+
+.bordereau-timeline-dot {
+    flex: 0 0 auto;
+    width: 9px;
+    height: 9px;
+    margin-top: 0.4rem;
+    border-radius: 50%;
+    background: var(--primary);
+}
+
+.bordereau-timeline-item strong {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
+.bordereau-timeline-meta {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.bordereau-timeline-comment {
+    margin-top: 0.25rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+/* ------------------------------------------------ Etat vide */
+
+.bordereau-empty {
+    display: grid;
+    justify-items: center;
+    gap: 0.4rem;
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.bordereau-empty strong {
+    font-size: 1rem;
+    color: var(--text-main);
+}
+
+.bordereau-empty span {
+    max-width: 46ch;
+    font-size: 0.86rem;
+}
+
+.bordereau-empty .btn {
+    margin-top: 0.5rem;
+}
+
+/* ------------------------------------------------ Theme sombre
+
+   Les fonds rgba ci-dessus restent lisibles sur clair mais leurs
+   textes sombres disparaissent sur fond sombre : on reprend ici
+   les seules paires fond / couleur concernees.
+   ------------------------------------------------------------- */
+
+html[data-theme="dark"] .bordereau-etat-attente {
+    background: rgba(147, 168, 184, 0.18);
+    color: #c3d3df;
+}
+
+html[data-theme="dark"] .bordereau-etat-encours {
+    background: rgba(239, 193, 95, 0.18);
+    color: #f0cd85;
+}
+
+html[data-theme="dark"] .bordereau-etat-termine {
+    background: rgba(86, 196, 118, 0.18);
+    color: #8fe0a9;
+}
+
+html[data-theme="dark"] .bordereau-mandat.is-deduit {
+    background: rgba(86, 196, 118, 0.18);
+    color: #8fe0a9;
+}
+
+html[data-theme="dark"] .bordereau-year-tab.is-active {
+    color: var(--sidebar-bg-deep, #050f19);
+}
+
+html[data-theme="dark"] .bordereau-step.is-done .bordereau-step-dot {
+    color: var(--sidebar-bg-deep, #050f19);
+}

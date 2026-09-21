@@ -92,6 +92,7 @@ class Notification(models.Model):
         MEETING = "meeting", "Reunion"
         DIPLOME = "diplome", "Lot de diplomes"
         COURRIER = "courrier", "Courrier"
+        DOCUMENT = "document", "Document"
 
     utilisateur = models.ForeignKey(
         User,

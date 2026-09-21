@@ -250,11 +250,15 @@ html[data-theme="dark"] .decision-column {
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-md, 13px);
     background: var(--surface-soft, #f7f9fc);
+    /* Un element de grille refuse par defaut de descendre sous la largeur de
+       son contenu. Sans cette remise a zero, un nom de service long pousse sa
+       colonne au-dela de sa part et la grille deborde sur ses voisines. */
+    min-width: 0;
 }
 
 .fiche-colonne legend {
     float: none;
-    width: auto;
+    width: 100%;
     margin-bottom: 0.5rem;
     padding: 0;
     color: var(--text-muted);
@@ -262,6 +266,11 @@ html[data-theme="dark"] .decision-column {
     letter-spacing: 0.07em;
     font-size: 0.68rem;
     font-weight: 700;
+    /* « Service de la Coopération Universitaire Internationale » ne tient pas
+       sur une ligne : il se coupe au lieu de deborder du cadre. */
+    line-height: 1.35;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .fiche-instructions-saisie {
@@ -287,6 +296,14 @@ html[data-theme="dark"] .decision-column {
 .fiche-case-saisie input {
     margin-top: 0.15rem;
     flex: 0 0 auto;
+}
+
+/* Le libelle doit pouvoir se couper : un enfant de conteneur flex ne descend
+   pas sous la largeur de son contenu sans qu'on l'y autorise. */
+.fiche-case-saisie > span {
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 /* ---------------------------------- Rangée de filtres

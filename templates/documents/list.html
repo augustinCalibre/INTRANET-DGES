@@ -66,7 +66,7 @@
                     <tr>
                         <th>Titre</th>
                         <th>Type</th>
-                        <th>Service</th>
+                        <th>Destinataires</th>
                         <th>Auteur</th>
                         <th>Statut</th>
                         <th>Date</th>
@@ -79,7 +79,17 @@
                         <tr>
                             <td data-label="Titre">{{ document.titre }}</td>
                             <td data-label="Type">{{ document.get_type_document_display }}</td>
-                            <td data-label="Service">{{ document.service_concerne|default:"-" }}</td>
+                            <td data-label="Destinataires">
+                                {% if document.pour_tous %}
+                                    <span class="document-portee is-tous">Tous les agents</span>
+                                {% else %}
+                                    {% for libelle in document.portee_labels %}
+                                        <span class="document-portee">{{ libelle }}</span>
+                                    {% empty %}
+                                        <span class="text-muted" title="Seul son auteur voit ce document.">Non diffusé</span>
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
                             <td data-label="Auteur">{{ document.auteur.get_full_name|default:document.auteur.username|default:"-" }}</td>
                             <td data-label="Statut"><span class="badge text-bg-light">{{ document.get_statut_display }}</span></td>
                             <td data-label="Date">{{ document.date_ajout|date:"d/m/Y H:i" }}</td>

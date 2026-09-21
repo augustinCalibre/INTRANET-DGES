@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Organismes suivis | Intranet DGES{% endblock %}
+{% block page_title %}Organismes suivis{% endblock %}
+
+{% block content %}
+    <div class="panel-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-section-header">
+            <div>
+                <h3 class="h5 mb-1">Organismes dont les bordereaux sont suivis</h3>
+                <p class="text-muted mb-0">
+                    Chaque organisme ouvre quatre boîtes trimestrielles par année dans le tableau de suivi.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 page-actions">
+                <a href="{% url 'bordereaux:tableau_annee' annee %}" class="btn btn-outline-secondary">Retour au suivi</a>
+                {% if can_manage %}
+                    <a href="{% url 'bordereaux:organisme_create' %}" class="btn btn-primary">Ajouter un organisme</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <label class="form-label" for="organismeFilter">Recherche</label>
+                <input
+                    type="text"
+                    id="organismeFilter"
+                    class="form-control"
+                    name="q"
+                    value="{{ recherche }}"
+                    placeholder="Nom ou sigle"
+                >
+            </div>
+            <div class="col-lg-3 d-grid align-self-end">
+                <button type="submit" class="btn btn-outline-primary">Filtrer</button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table align-middle stacked-mobile-table">
+                <thead>
+                    <tr>
+                        <th>Sigle</th>
+                        <th>Nom</th>
+                        <th>Bordereaux</th>
+                        <th>Suivi</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for organisme in organismes %}
+                        <tr>
+                            <td data-label="Sigle"><strong>{{ organisme.libelle_court }}</strong></td>
+                            <td data-label="Nom">{{ organisme.nom }}</td>
+                            <td data-label="Bordereaux">{{ organisme.nb_bordereaux }}</td>
+                            <td data-label="Suivi">
+                                {% if organisme.actif %}
+                                    <span class="badge bordereau-etat-termine">Suivi</span>
+                                {% else %}
+                                    <span class="badge bordereau-etat-attente">Retiré du tableau</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Action" class="text-end table-actions">
+                                <div class="action-icon-bar justify-content-end">
+                                    {% if can_manage %}
+                                        <a
+                                            href="{% url 'bordereaux:organisme_edit' organisme.pk %}"
+                                            class="action-icon-button action-icon-button-primary"
+                                            aria-label="Modifier {{ organisme.libelle_court }}"
+                                            title="Modifier"
+                                        >
+                                            {% include "includes/action_icon.html" with icon="edit" %}
+                                        </a>
+                                    {% endif %}
+                                    {% if can_delete %}
+                                        <form
+                                            method="post"
+                                            action="{% url 'bordereaux:organisme_delete' organisme.pk %}"
+                                            class="action-icon-form"
+                                            data-confirm-form="Supprimer {{ organisme.libelle_court }} ? La suppression est refusée si des bordereaux lui sont rattachés."
+                                            data-confirm-title="Supprimer l'organisme"
+                                            data-confirm-accept="Supprimer"
+                                            data-confirm-tone="danger"
+                                        >
+                                            {% csrf_token %}
+                                            <button
+                                                type="submit"
+                                                class="action-icon-button action-icon-button-danger"
+                                                aria-label="Supprimer {{ organisme.libelle_court }}"
+                                                title="Supprimer"
+                                            >
+                                                {% include "includes/action_icon.html" with icon="delete" %}
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5">
+                                <div class="bordereau-empty">
+                                    <strong>Aucun organisme</strong>
+                                    <span>
+                                        {% if recherche %}
+                                            Aucun organisme ne correspond à « {{ recherche }} ».
+                                        {% else %}
+                                            Ajoutez les organismes dont vous suivez les bordereaux.
+                                        {% endif %}
+                                    </span>
+                                    {% if can_manage and not recherche %}
+                                        <a href="{% url 'bordereaux:organisme_create' %}" class="btn btn-primary btn-sm">Ajouter un organisme</a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% include "includes/pagination.html" %}
+    </div>
+{% endblock %}

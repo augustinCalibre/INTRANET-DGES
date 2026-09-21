@@ -124,6 +124,20 @@ ROLES_ACCES_COURRIERS = ROLES_COURRIER | ROLES_TRANSMISSION_DG | ROLES_VALIDATIO
 # signer, sans pour autant pouvoir en modifier le contenu.
 ROLES_ACCES_DIPLOMES = ROLES_DIPLOMES | ROLES_TRANSMISSION_DG | ROLES_VALIDATION_DG
 
+# Tenue du suivi trimestriel des bordereaux : enregistrement des dossiers
+# presentes au circuit de signature et saisie des dates de signature.
+# Le Secretariat suit ces bordereaux comme il suit les parapheurs ; le
+# module ne conserve aucun montant, seulement des numeros et des dates.
+ROLES_BORDEREAUX = {
+    ROLE_SECRETARIAT,
+    ROLE_SECRETARIAT_ADJOINT,
+    ROLE_ADMINISTRATEUR,
+}
+
+# Lecture du tableau de suivi. Le Directeur General consulte l'avancement
+# des dossiers sans saisir lui-meme les signatures.
+ROLES_ACCES_BORDEREAUX = ROLES_BORDEREAUX | ROLES_VALIDATION_DG
+
 # Planning du Directeur General et reunions de toute la direction.
 ROLES_PLANNING = {
     ROLE_SECRETARIAT,
@@ -196,6 +210,9 @@ GROUP_PERMISSIONS = {
         ("diplomas", "view_diplome"),
         ("diplomas", "view_lothistory"),
         ("diplomas", "view_diplomehistory"),
+        ("bordereaux", "view_organisme"),
+        ("bordereaux", "view_bordereau"),
+        ("bordereaux", "view_bordereauhistory"),
         ("core", "view_activitylog"),
         ("core", "view_notification"),
     ],
@@ -218,6 +235,13 @@ GROUP_PERMISSIONS = {
         ("diplomas", "view_lotdiplomes"),
         ("diplomas", "change_lotdiplomes"),
         ("diplomas", "view_diplome"),
+        ("bordereaux", "view_organisme"),
+        ("bordereaux", "add_organisme"),
+        ("bordereaux", "change_organisme"),
+        ("bordereaux", "view_bordereau"),
+        ("bordereaux", "add_bordereau"),
+        ("bordereaux", "change_bordereau"),
+        ("bordereaux", "view_bordereauhistory"),
         ("core", "view_activitylog"),
     ],
     # Le Secretariat adjoint enregistre : visiteurs, courriers, planning.
@@ -233,6 +257,13 @@ GROUP_PERMISSIONS = {
         ("meetings", "view_meeting"),
         ("meetings", "add_meeting"),
         ("meetings", "change_meeting"),
+        ("bordereaux", "view_organisme"),
+        ("bordereaux", "add_organisme"),
+        ("bordereaux", "change_organisme"),
+        ("bordereaux", "view_bordereau"),
+        ("bordereaux", "add_bordereau"),
+        ("bordereaux", "change_bordereau"),
+        ("bordereaux", "view_bordereauhistory"),
     ],
     # Le Service courrier receptionne et traite, sans acces au planning.
     ROLE_COURRIER: _LECTURE_COMMUNE

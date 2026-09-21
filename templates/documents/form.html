@@ -12,8 +12,15 @@
             {% endif %}
             <div class="row g-3">
                 {% for field in form %}
-                    <div class="{% if field.name == 'fichier' %}col-12{% else %}col-md-6{% endif %}">
+                    <div class="{% if field.name == 'fichier' or field.name == 'destinataires' %}col-12{% else %}col-md-6{% endif %}">
+                        {% if field.name == "pour_tous" or field.name == "est_archive" %}
+                            <div class="form-check document-portee-tous">
+                                {{ field }}
+                                <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            </div>
+                        {% else %}
                         <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {% endif %}
                         {% if field.name == "fichier" %}
                             <div class="file-upload-field">
                                 {% if document and document.fichier %}
@@ -28,8 +35,11 @@
                                     {{ field }}
                                 </div>
                             </div>
-                        {% else %}
+                        {% elif field.name != "pour_tous" and field.name != "est_archive" %}
                             {{ field }}
+                        {% endif %}
+                        {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
                         {% endif %}
                         {% for error in field.errors %}
                             <div class="text-danger small mt-1">{{ error }}</div>

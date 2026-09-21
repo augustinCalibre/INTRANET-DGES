@@ -62,26 +62,39 @@
         {% endif %}
 
         <h2 class="fiche-section">IMPUTATIONS</h2>
+        {% comment %}
+            Les services s'écoulent sur plusieurs rangées. Tenter de tous les
+            aligner sur une seule ligne divisait la largeur de la page par leur
+            nombre : au-delà de quatre, les noms se chevauchaient.
+        {% endcomment %}
         <table class="fiche-grille">
             <tbody>
-                <tr>
-                    {% for colonne in grille_imputations %}
-                        <td>
-                            <div class="fiche-case fiche-colonne-titre">
-                                <span class="fiche-coche {% if colonne.service_cochee %}est-cochee{% endif %}" aria-hidden="true"></span>
-                                <span>{{ colonne.service.nom }}</span>
-                            </div>
-                            {% for agent in colonne.agents %}
-                                <div class="fiche-case">
-                                    <span class="fiche-coche {% if agent.cochee %}est-cochee{% endif %}" aria-hidden="true"></span>
-                                    <span>{{ agent.nom }}</span>
-                                </div>
-                            {% endfor %}
-                        </td>
-                    {% empty %}
-                        <td>Aucun service enregistré.</td>
-                    {% endfor %}
-                </tr>
+                {% for rangee in rangees_imputations %}
+                    <tr>
+                        {% for colonne in rangee %}
+                            <td {% if not colonne %}class="fiche-case-vide"{% endif %}>
+                                {% if colonne %}
+                                    <div class="fiche-case fiche-colonne-titre">
+                                        <span class="fiche-coche {% if colonne.service_cochee %}est-cochee{% endif %}" aria-hidden="true"></span>
+                                        <span>{{ colonne.service.nom }}</span>
+                                    </div>
+                                    {% for agent in colonne.agents %}
+                                        <div class="fiche-case">
+                                            <span class="fiche-coche {% if agent.cochee %}est-cochee{% endif %}" aria-hidden="true"></span>
+                                            <span>{{ agent.nom }}</span>
+                                        </div>
+                                    {% empty %}
+                                        <div class="fiche-case fiche-case-sans-agent">
+                                            <span>Aucun agent rattaché</span>
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% empty %}
+                    <tr><td>Aucun service enregistré.</td></tr>
+                {% endfor %}
             </tbody>
         </table>
 

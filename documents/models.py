@@ -39,6 +39,21 @@ class Document(models.Model):
         blank=True,
         related_name="documents",
     )
+    # Un document ne s'adresse pas qu'a un service : il vise parfois des
+    # agents nommement, quel que soit leur rattachement, ou toute la
+    # direction. Les trois destinations se cumulent — un document peut partir
+    # a un service et a deux agents d'un autre.
+    destinataires = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name="documents_recus",
+        verbose_name="Agents destinataires",
+    )
+    pour_tous = models.BooleanField(
+        default=False,
+        verbose_name="Tous les agents de la DGES",
+        help_text="Le document devient consultable par tous les comptes actifs.",
+    )
     auteur = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -65,6 +80,36 @@ class Document(models.Model):
     @property
     def nom_fichier(self):
         return Path(self.fichier.name).name
+
+    # -- Portee du document -------------------------------------------
+
+    @property
+    def noms_destinataires(self):
+        return [
+            agent.get_full_name().strip() or agent.username
+            for agent in self.destinataires.all()
+        ]
+
+    @property
+    def portee_labels(self):
+        """A qui ce document s'adresse, tel qu'on l'affiche dans la liste.
+
+        « Tous les agents » se suffit a lui-meme : detailler en plus un
+        service ou des noms laisserait croire a une diffusion restreinte.
+        """
+        if self.pour_tous:
+            return ["Tous les agents"]
+
+        labels = []
+        if self.service_concerne_id:
+            labels.append(self.service_concerne.nom)
+        labels.extend(self.noms_destinataires)
+        return labels
+
+    @property
+    def est_sans_destinataire(self):
+        """Document que son auteur est seul a voir, faute de destination."""
+        return not self.pour_tous and not self.service_concerne_id and not self.destinataires.exists()
 
     def save(self, *args, **kwargs):
         if self.est_archive:
